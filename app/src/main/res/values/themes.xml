@@ -1,0 +1,16 @@
+<resources>
+
+    <style name="Theme.ColorOSTools.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:statusBarColor">@color/transparent</item>
+        <!--不覆写 android:windowAnimationStyle：自定义的 fade 会顶掉系统默认窗口动画，
+            返回桌面/返回上一个 Activity 时应由系统播放官方的预测性返回动画-->
+    </style>
+
+    <!--启动闪屏主题：仅挂在 MainActivity 上（values-v31 覆盖为系统 splash 版本）。
+        首帧渲染前窗口显示纯色背景，与 Compose 闪屏层同色，因此没有白屏闪烁；
+        Logo 入场动画由 Compose 侧 ColorOSToolsSplashHost 绘制。-->
+    <style name="Theme.ColorOSTools.Splash" parent="Theme.ColorOSTools.NoActionBar">
+        <item name="android:windowBackground">@color/splash_background</item>
+    </style>
+
+</resources>

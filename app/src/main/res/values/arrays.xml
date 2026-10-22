@@ -1,0 +1,425 @@
+<resources>
+    <string-array name="xposed_scope">
+        <item>android</item>
+        <item>com.android.systemui</item>
+        <item>com.oplus.battery</item>
+        <item>com.android.settings</item>
+        <item>com.android.packageinstaller</item>
+        <item>com.android.launcher</item>
+        <item>com.oppo.launcher</item>
+        <item>com.oneplus.camera</item>
+        <item>com.oplus.camera</item>
+        <item>com.coloros.gallery3d</item>
+        <item>com.oplus.safecenter</item>
+        <item>com.coloros.safecenter</item>
+        <item>com.coloros.alarmclock</item>
+        <item>com.oplus.notificationmanager</item>
+        <item>com.coloros.phonemanager</item>
+        <item>com.oplus.aod</item>
+        <item>com.oplus.uiengine</item>
+        <item>com.heytap.themestore</item>
+        <item>com.oplus.games</item>
+        <item>com.oplus.cosa</item>
+        <item>com.heytap.cloud</item>
+        <item>com.oplus.screenshot</item>
+        <item>com.oplus.ota</item>
+        <item>com.oplus.sau</item>
+        <item>com.heytap.pictorial</item>
+        <item>com.android.mms</item>
+        <item>com.android.incallui</item>
+        <item>com.android.phone</item>
+        <item>com.android.externalstorage</item>
+        <item>com.heytap.browser</item>
+        <item>com.oplus.gesture</item>
+        <item>com.android.permissioncontroller</item>
+        <item>com.coloros.directui</item>
+        <item>com.heytap.quicksearchbox</item>
+        <item>com.heytap.market</item>
+        <item>com.coloros.weather2</item>
+        <item>com.coloros.calendar</item>
+        <item>com.coloros.smartsidebar</item>
+        <item>com.oplus.multiapp</item>
+        <item>com.coloros.soundrecorder</item>
+        <item>com.oplus.audiomonitor</item>
+        <item>com.oplus.atlas</item>
+        <item>com.oplus.audio.effectcenter</item>
+        <item>com.oplus.appplatform</item>
+        <item>com.oplus.eyeprotect</item>
+        <item>com.oplus.mediacontroller</item>
+        <item>com.oplus.exsystemservice</item>
+        <item>com.oplus.keyguard.clock.base</item>
+        <item>com.oplus.keyguard.personality.clocks</item>
+        <item>com.oplus.beaconlink</item>
+        <item>com.heytap.speechassist</item>
+        <item>com.oplus.wirelesssettings</item>
+        <item>com.heytap.health</item>
+        <item>com.android.nfc</item>
+        <item>com.coloros.oshare</item>
+        <item>com.android.bluetooth</item>
+        <item>com.android.contacts</item>
+        <item>com.oplus.securitypermission</item>
+        <item>com.coloros.filemanager</item>
+        <item>com.oplus.engineermode</item>
+        <item>com.heytap.mydevices</item>
+        <item>com.heytap.accessory</item>
+        <item>com.heytap.mcs</item>
+        <item>com.oplus.metis</item>
+
+        <item>com.oplus.claw</item>
+        <item>ru.kslabs.ksweb</item>
+        <item>com.dv.adm</item>
+        <item>com.ruet_cse_1503050.ragib.appbackup.pro</item>
+        <item>com.theappninjas.fakegpsjoystick</item>
+    </string-array>
+    
+    <array name="kgd_chinese_leap_month">
+        <item>闰</item>
+        <item>月</item>
+    </array>
+    
+    <array name="kgd_chinese_animal_year">
+        <item>鼠年</item>
+        <item>牛年</item>
+        <item>虎年</item>
+        <item>兔年</item>
+        <item>龙年</item>
+        <item>蛇年</item>
+        <item>马年</item>
+        <item>羊年</item>
+        <item>猴年</item>
+        <item>鸡年</item>
+        <item>狗年</item>
+        <item>猪年</item>
+    </array>
+    
+    <array name="kgd_chinese_tiangan">
+        <item>甲</item>
+        <item>乙</item>
+        <item>丙</item>
+        <item>丁</item>
+        <item>戊</item>
+        <item>己</item>
+        <item>庚</item>
+        <item>辛</item>
+        <item>壬</item>
+        <item>癸</item>
+    </array>
+    
+    <array name="kgd_chinese_dizhi">
+        <item>子</item>
+        <item>丑</item>
+        <item>寅</item>
+        <item>卯</item>
+        <item>辰</item>
+        <item>巳</item>
+        <item>午</item>
+        <item>未</item>
+        <item>申</item>
+        <item>酉</item>
+        <item>戌</item>
+        <item>亥</item>
+    </array>
+    
+    <array name="kgd_chinese_month_number">
+        <item>月</item>
+        <item>正</item>
+        <item>二</item>
+        <item>三</item>
+        <item>四</item>
+        <item>五</item>
+        <item>六</item>
+        <item>七</item>
+        <item>八</item>
+        <item>九</item>
+        <item>十</item>
+        <item>十一</item>
+        <item>腊</item>
+    </array>
+    
+    <array name="kgd_chinese_day_number">
+        <item>初一</item>
+        <item>初二</item>
+        <item>初三</item>
+        <item>初四</item>
+        <item>初五</item>
+        <item>初六</item>
+        <item>初七</item>
+        <item>初八</item>
+        <item>初九</item>
+        <item>初十</item>
+        <item>十一</item>
+        <item>十二</item>
+        <item>十三</item>
+        <item>十四</item>
+        <item>十五</item>
+        <item>十六</item>
+        <item>十七</item>
+        <item>十八</item>
+        <item>十九</item>
+        <item>二十</item>
+        <item>廿一</item>
+        <item>廿二</item>
+        <item>廿三</item>
+        <item>廿四</item>
+        <item>廿五</item>
+        <item>廿六</item>
+        <item>廿七</item>
+        <item>廿八</item>
+        <item>廿九</item>
+        <item>三十</item>
+    </array>
+    
+    <string-array name="sort_selector_chips">
+        <item>@string/appinfo_app_name</item>
+        <item>@string/appinfo_package_name</item>
+        <item>@string/appinfo_app_size</item>
+        <item>@string/appinfo_install_time</item>
+        <item>@string/appinfo_last_updated_time</item>
+        <item>@string/appinfo_target_sdk</item>
+    </string-array>
+    
+    <string-array name="filter_selector_chips">
+        <item>@string/appinfo_system_app</item>
+    </string-array>
+    
+    <string-array name="dark_theme" translatable="false">
+        <item>@string/dark_theme_follow_system</item>
+        <item>@string/dark_theme_on</item>
+        <item>@string/dark_theme_off</item>
+        <item>@string/dark_theme_on_amoled</item>
+    </string-array>
+    
+    <string-array name="dark_theme_value" translatable="false">
+        <item>MODE_NIGHT_NO</item>
+        <item>MODE_NIGHT_YES</item>
+        <item>MODE_NIGHT_FOLLOW_SYSTEM</item>
+    </string-array>
+    
+    <string-array name="statusbar_clock_mode_entries">
+        <item>@string/default_</item>
+        <item>@string/preset</item>
+        <item>@string/customize</item>
+    </string-array>
+    
+    <string-array name="statusbar_layout_mode_entries">
+        <item>@string/default_</item>
+        <item>@string/statusbar_layout_clock_center_align</item>
+    </string-array>
+    
+    <string-array name="statusbar_clock_text_alignment_entries">
+        <item>@string/statusbar_clock_left_align</item>
+        <item>@string/statusbar_clock_center_align</item>
+        <item>@string/statusbar_clock_right_align</item>
+    </string-array>
+    
+    <string-array name="statusbar_network_layout_entries">
+        <item>@string/default_</item>
+        <item>@string/single_line</item>
+        <item>@string/double_line</item>
+    </string-array>
+    
+    <string-array name="statusbar_battery_information_notify_entries">
+        <item>@string/close</item>
+        <item>@string/battery_information_notify_permanent_display</item>
+        <item>@string/battery_information_notify_only_charging</item>
+    </string-array>
+    
+    <string-array name="battery_information_voltage_display_mode_entries">
+        <item>@string/close</item>
+        <item>@string/battery_information_show_voltage</item>
+        <item>@string/battery_information_show_dual_voltage</item>
+    </string-array>
+    
+    <string-array name="remove_fingerprint_icon_mode_entries">
+        <item>@string/close</item>
+        <item>@string/remove_fingerprint_icon</item>
+        <item>@string/remove_fingerprint_press_animation</item>
+        <item>@string/remove_fingerprint_icon_and_press_animation</item>
+    </string-array>
+    
+    <string-array name="switch_autostart_function_caller_entries">
+        <item>@string/switch_autostart_function_caller_module</item>
+        <item>@string/switch_autostart_function_caller_systemui</item>
+    </string-array>
+    
+    <string-array name="universal_switch_entries">
+        <item>@string/default_</item>
+        <item>@string/enable</item>
+        <item>@string/disable</item>
+    </string-array>
+    
+    <string-array name="statusbar_control_center_clock_red_one_mode_entries">
+        <item>@string/default_</item>
+        <item>@string/enable</item>
+        <item>@string/disable</item>
+    </string-array>
+    
+    <string-array name="statusbar_control_center_clock_colon_style_entries">
+        <item>@string/default_</item>
+        <item>@string/normal</item>
+        <item>@string/special</item>
+    </string-array>
+    
+    <string-array name="statusbar_control_center_date_fix_lunar_horizontal_entries">
+        <item>@string/default_</item>
+        <item>文字滚动模式</item>
+        <item>布局偏移模式</item>
+    </string-array>
+    
+    <string-array name="statusbar_control_center_networkwarn_entries">
+        <item>@string/default_</item>
+        <item>@string/remove_control_center_networkwarn_dialog</item>
+        <item>@string/remove_control_center_networkwarn_dialog_and_text</item>
+    </string-array>
+    
+    <string-array name="statusbar_control_center_auto_brightness_mode_entries">
+        <item>@string/default_</item>
+        <item>@string/enable</item>
+        <item>@string/disable</item>
+    </string-array>
+    
+    <string-array name="set_control_center_volume_seekbar_mode_entries">
+        <item>@string/default_</item>
+        <item>@string/enable</item>
+        <item>@string/disable</item>
+    </string-array>
+    
+    <string-array name="set_aod_notification_icon_style_entries">
+        <item>@string/default_</item>
+        <item>@string/enable</item>
+        <item>@string/disable</item>
+    </string-array>
+    
+    <string-array name="set_random_text_display_mode_entries">
+        <item>@string/close</item>
+        <item>@string/set_random_text_display_mode_local_file</item>
+        <item>@string/set_random_text_display_mode_remote_api</item>
+    </string-array>
+    
+    <string-array name="set_aod_typeface_mode_entries">
+        <item>@string/default_</item>
+        <item>@string/normal</item>
+        <item>@string/bold</item>
+    </string-array>
+    
+    <string-array name="set_processor_click_page_entries">
+        <item>@string/default_</item>
+        <item>8+ Gen 1</item>
+        <item>8+ Gen 2</item>
+        <item>@string/customize</item>
+    </string-array>
+    
+    <string-array name="set_full_screen_charging_animation_mode_entries">
+        <item>@string/default_</item>
+        <item>@string/enable</item>
+        <item>@string/disable</item>
+    </string-array>
+    
+    <string-array name="set_lock_screen_warp_charging_style_entries">
+        <item>@string/default_</item>
+        <item>@string/enable</item>
+        <item>@string/disable</item>
+    </string-array>
+    
+    <string-array name="set_lock_screen_charging_text_logo_style_entries">
+        <item>@string/default_</item>
+        <item>@string/enable</item>
+        <item>@string/disable</item>
+    </string-array>
+    
+    <string-array name="set_control_center_search_button_mode_entries">
+        <item>@string/default_</item>
+        <item>@string/enable</item>
+        <item>@string/disable</item>
+    </string-array>
+    
+    <string-array name="set_media_player_display_mode_entries">
+        <item>@string/default_</item>
+        <item>@string/enable</item>
+        <item>@string/disable</item>
+        <item>@string/set_media_player_display_mode_hide_when_no_meida_player</item>
+    </string-array>
+    
+    <string-array name="set_volume_bar_display_position_entries">
+        <item>@string/default_</item>
+        <item>@string/left</item>
+        <item>@string/right</item>
+    </string-array>
+    
+    <string-array name="set_click_statusbar_scroll_to_top_mode_entries">
+        <item>@string/default_</item>
+        <item>@string/disable</item>
+        <item>@string/set_click_statusbar_scroll_to_top_mode_remove_white_list</item>
+    </string-array>
+    
+    <string-array name="lock_screen_custom_clock_component_style_entries">
+        <item>@string/default_</item>
+        <item>OPPO/Realme</item>
+        <item>OnePlus</item>
+    </string-array>
+    
+    <string-array name="custom_app_floating_window_display_mode_entries">
+        <item>@string/default_</item>
+        <item>@string/custom_app_floating_window_display_mode_disable_float_window</item>
+        <item>@string/custom_app_floating_window_display_mode_remove_whitelist</item>
+        <item>@string/custom_app_floating_window_display_mode_custom_whitelist</item>
+    </string-array>
+    
+    <string-array name="set_multi_app_support_mode_low_entries">
+        <item>@string/default_</item>
+        <item>@string/whitelist</item>
+    </string-array>
+    
+    <string-array name="set_multi_app_support_mode_entries">
+        <item>@string/default_</item>
+        <item>@string/whitelist</item>
+        <item>@string/set_multi_app_support_mode_all_apps</item>
+    </string-array>
+    
+    <string-array name="set_ltpo_refresh_rate_mode_entries">
+        <item>@string/default_</item>
+        <item>@string/enable</item>
+        <item>@string/disable</item>
+    </string-array>
+    
+    <string-array name="set_app_update_dot_display_mode_entries">
+        <item>@string/default_</item>
+        <item>@string/enable</item>
+        <item>@string/disable</item>
+    </string-array>
+    
+    <string-array name="customized_gaussian_blur_effect_level_entries">
+        <item>@string/default_</item>
+        <item>@string/dynamic</item>
+        <item>@string/low</item>
+        <item>@string/middle</item>
+        <item>@string/high</item>
+    </string-array>
+    
+    <string-array name="set_wlan_sla_whitelist_mode_entries">
+        <item>@string/default_</item>
+        <item>@string/expand</item>
+        <item>@string/replace</item>
+    </string-array>
+    
+    <string-array name="adm_unlock_more_threads_entries">
+        <item>@string/default_</item>
+        <item>32</item>
+        <item>64</item>
+        <item>128</item>
+    </string-array>
+    
+    <string-array name="custom_system_message_region_defaults_entries">
+        <item>@string/default_</item>
+        <item>CN</item>
+        <item>IN</item>
+        <item>US</item>
+    </string-array>
+    
+    <string-array name="action_button_ring_cycle_mode_entries">
+        <item>响铃 振动 静音</item>
+        <item>响铃 振动</item>
+        <item>响铃 静音</item>
+    </string-array>
+
+</resources>

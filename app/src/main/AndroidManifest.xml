@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:tools="http://schemas.android.com/tools">
+    
+    <!--使用生物识别-->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <!--网络访问-->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!--请求安装包-->
+    <uses-permission
+            android:name="android.permission.REQUEST_INSTALL_PACKAGES"
+            tools:ignore="RequestInstallPackagesPolicy" />
+    <!--读取外部存储-->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <!--写入外部存储-->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <!--所有文件访问-->
+    <uses-permission
+            android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+            tools:ignore="ScopedStorage" />
+    <!--读取应用列表-->
+    <uses-permission
+            android:name="android.permission.QUERY_ALL_PACKAGES"
+            tools:ignore="PackageVisibilityPolicy" />
+    <uses-permission android:name="com.android.permission.GET_INSTALLED_APPS" />
+    <uses-permission android:name="com.oplus.ocs.permission.third" />
+    <!--发送通知-->
+    <uses-permission android:name="android.permission.NOTIFICATION_SERVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!--前台服务-->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <!--Miuix blur 的 minSdk 为 33、高于本模块的 30，放行 manifest 合并-->
+    <uses-sdk tools:overrideLibrary="top.yukonga.miuix.kmp.blur" />
+
+    <!--预测性返回：Android 15 及更早版本必须显式声明该 flag，系统才会为应用提供官方预测性返回动画
+        （返回桌面 / 跨 Activity / 跨任务；Android 16 起 targetSdk 36+ 默认开启）。运行期由
+        PredictiveBackUtils 按 enable_predictive_back 偏好覆盖该值（应用内默认开启）。-->
+    <application
+            android:name=".ui.application.MyApplication"
+            android:allowBackup="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_name"
+            android:description="@string/xposeddescription"
+            android:roundIcon="@mipmap/ic_launcher_round"
+            android:supportsRtl="true"
+            android:theme="@style/Theme.ColorOSTools.NoActionBar"
+            android:preserveLegacyExternalStorage="true"
+            android:requestLegacyExternalStorage="true"
+            android:hasFragileUserData="true"
+            android:enableOnBackInvokedCallback="true">
+        <activity
+                android:name=".ui.activity.MainActivity"
+                android:exported="true"
+                android:theme="@style/Theme.ColorOSTools.Splash">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="de.robv.android.xposed.category.MODULE_SETTINGS" />
+            </intent-filter>
+        </activity>
+        <activity-alias
+                android:name=".Hide"
+                android:enabled="true"
+                android:exported="true"
+                android:label="@string/app_name"
+                android:targetActivity=".ui.activity.MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        
+        
+        <activity
+                android:name=".ui.activity.CropImageActivity"
+                android:theme="@style/Theme.ColorOSTools.NoActionBar" />
+        
+        <meta-data
+                android:name="xposedmodule"
+                android:value="true" />
+        <meta-data
+                android:name="xposeddescription"
+                android:value="@string/xposeddescription" />
+        
+        
+        <receiver
+                android:name=".receiver.SecretCodeReceiver"
+                android:enabled="true"
+                android:exported="true">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SECRET_CODE" />
+                <data android:scheme="android_secret_code" />
+            </intent-filter>
+        </receiver>
+        
+        <provider
+                android:name="androidx.core.content.FileProvider"
+                android:authorities="${applicationId}.FileProvider"
+                android:exported="false"
+                android:grantUriPermissions="true">
+            <meta-data
+                    android:name="android.support.FILE_PROVIDER_PATHS"
+                    android:resource="@xml/file_paths" />
+        </provider>
+    
+    </application>
+
+</manifest>

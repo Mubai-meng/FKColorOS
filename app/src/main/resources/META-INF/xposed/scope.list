@@ -1,0 +1,54 @@
+# 模块作用域（LSPosed 中会据此预勾选）。
+# 注意：libxposed「现代模块」里 system_server 的作用域名是 `system`（LSPosed 显示为「系统框架」）；
+# `android`（显示为「Android 系统」）是 ChooserActivity/ResolverActivity 等系统弹窗进程，不是 system_server。
+#
+# 流体云两功能（替换流体云目标 / 自定义流体云）：单宿主 com.oplus.metis。
+#
+# 2026-10-15 真机实测（ColorOS 17 / OnePlus 15，功能已验证生效）：
+#   - metis 的全部 4 个进程（主进程 / :net / :text_intent）里，卡片管线与识别层的
+#     注入点**一应俱全**：CommandHandler#checkValidity ✓ DeepLinkData#parseIntent ✓
+#     Repository#obtainKouLingData ✓ TokenDetector#readTokens ✓ ActionData#parse ✓；
+#   - 参考实现 fkfluidcloud 曾按三宿主（另加 com.coloros.sceneservice /
+#     com.coloros.colordirectservice）注入，但本机实测这两个应用**全程 0 次加载**，
+#     且 direct 新引擎类（com.coloros.direct.command.*）不存在 —— 纯属注入无谓进程，
+#     故收敛为单宿主（更小的作用域 = 更小的注入面与性能影响）。
+#   - 兜底：MainHook 的分发条件仍识别这三个宿主，若日后手动把另两个加回作用域，
+#     Hooker 内部按「类是否存在」自适应安装，无需改代码。
+com.oplus.metis
+#
+# 无障碍增强（设置 App）：单宿主 com.android.settings。
+#
+# 为什么只能挂设置：写 Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES 需要
+# WRITE_SECURE_SETTINGS（signature|privileged），只有设置这类系统应用持有。
+# 2026-10-16 逆向验证（设置 17.0.0，E:/WorkBuddy_All/APP/oneplus/decompiled/settings）：
+#   - SettingsActivity#onCreate(Bundle) 存在（SettingsActivity.java:720）；
+#   - Settings$AccessibilitySettingsActivity extends SettingsActivity 且未覆写 onCreate
+#     （Settings.java:74），manifest:3204 承接 android.settings.ACCESSIBILITY_SETTINGS；
+#   - Settings$AccessibilityDetailsSettingsActivity 存在（Settings.java:64），
+#     manifest:3216 带 OPEN_ACCESSIBILITY_DETAILS_SETTINGS 权限，详情 Fragment 读
+#     android.intent.extra.COMPONENT_NAME（AccessibilityDetailsSettingsFragment.java:147）；
+#   - 设置清单持有 WRITE_SECURE_SETTINGS（manifest:75）。
+# 详见 docs/无障碍增强-方案评估.md。
+com.android.settings
+
+# 桌面长按菜单定制（App 图标长按菜单）：单宿主 com.android.launcher（系统桌面 17.3.12）。
+# 2026-10-16 逆向验证（E:/WorkBuddy_All/APP/oneplus/decompiled/launcher）：
+#   - ShortcutDataBuilder#buildPopupData(View) 是全部菜单数据的唯一总装点
+#     （PopupMenuPresenter#showForIcon :654 调用，返回 PopupMenuData）；
+#   - COUIPopupListWindowContainer#populateAndShow(View, PopupMenuData) 对
+#     systemShortcutsIn 逐项 isEnabled() 过滤（:1729）⇒ 数据层删实例即等价于禁用；
+#   - BasePopupListWindowContainer#segments() 是渲染（refreshList→buildDisplayList）与
+#     点击（n8.a#onItemClick，实时重调）的公共上游；深链段 take(currentVisibleDeepShortcutLimit())；
+#   - MordFunctions 的 mMoreSystemShortcutList 与 popupListItems 构造时同步 add（下标对应）。
+# 详见 docs/桌面长按菜单移植-方案评估.md。
+com.android.launcher
+
+# 天气 App 不外跳浏览器（应用内 WebView 展示二级页）：单宿主 com.coloros.weather2。
+# 2026-10-16 逆向验证（天气 17.7.4，E:/WorkBuddy_All/APP/oneplus/decompiled/weather）：
+#   - 正式版所有外跳最终收敛到 startActivity/startActivityForResult，intent 形状 =
+#     VIEW / com.heytap.browser.action.DETAIL_PAGE + 浏览器三件套包名 + http(s) data；
+#   - 应用自带 WeatherWebActivity（com.oplus.weather.plugin.webview）是官方支持的
+#     应用内 WebView（体验版默认走它，正式版只在浏览器不可用时兜底）；
+#   - 拦截只改 http(s) + 浏览器目标，market:// 等其它 App 深链与 App 内自跳全部放行。
+# 详见 docs/天气App不外跳浏览器-方案分析.md。
+com.coloros.weather2

@@ -1,0 +1,1025 @@
+@file:Suppress("unused")
+
+package com.fr.colorostools.ui.compose.components
+
+import android.content.Context
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyItemScope
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItemColors
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.rememberSliderState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.fr.colorostools.R
+import com.fr.colorostools.ui.compose.components.material.MaterialDropdownItem
+import com.fr.colorostools.ui.compose.components.material.MaterialItem
+import com.fr.colorostools.ui.compose.components.material.MaterialItemContainer
+import com.fr.colorostools.ui.compose.components.material.MaterialListItem
+import com.fr.colorostools.ui.compose.components.material.MaterialSwitchItem
+import com.fr.colorostools.ui.compose.components.material.materialGroupColors
+import com.fr.colorostools.ui.compose.components.material.materialBottomInset
+import com.fr.colorostools.ui.compose.components.miuix.MiuixArrowItem
+import com.fr.colorostools.ui.compose.components.miuix.MiuixDropdownItem
+import com.fr.colorostools.ui.compose.components.miuix.MiuixListItem
+import com.fr.colorostools.ui.compose.components.miuix.MiuixPrefCategoryHeader
+import com.fr.colorostools.ui.compose.components.miuix.MiuixPrefDefaults
+import com.fr.colorostools.ui.compose.components.miuix.MiuixPrefItemColors
+import com.fr.colorostools.ui.compose.components.miuix.MiuixPrefItemShape
+import com.fr.colorostools.ui.compose.components.miuix.MiuixPrefTextDialog
+import com.fr.colorostools.ui.compose.components.miuix.MiuixSliderRow
+import com.fr.colorostools.ui.compose.components.miuix.MiuixSwitchItem
+import com.fr.colorostools.ui.compose.scopes.ScopePageRegistry
+import com.fr.colorostools.ui.theme.DesignTokens
+import com.fr.colorostools.ui.theme.LocalUiMode
+import com.fr.colorostools.ui.theme.UiMode
+import com.fr.colorostools.utils.PrefState
+import com.fr.colorostools.utils.ScopeGuard
+import com.fr.colorostools.utils.showToast
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.utils.overScrollVertical
+import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
+
+/**
+ * 页面顶栏 inset 注入点（唯一机制）：Miuix 线的 LazyColumn 用它作为 `contentPadding` 的 top，
+ * 让内容能滚到顶栏之下（scroll-under）而不被首行遮挡。
+ *
+ * 默认 `0.dp` → material 线与未提供者零影响（material 分支不做任何条件判断）。
+ * **provide 方是页面骨架**（`ui/compose/FunctionPage.kt` 的 Miuix 分支把顶栏高度 provide 下来、
+ * 并把外置 padding 的 top 置 0）；本文件只声明 + 消费，不 provide。
+ * 除本机制外不要再补任何 padding 去解决首行遮挡（会与它叠加）。
+ */
+internal val LocalScopeTopInset = compositionLocalOf { 0.dp }
+
+/**
+ * 页面列表的 [LazyListState]（[ScopeScreen] 里那个 LazyColumn 的状态）。
+ *
+ * 由 [ScopeScreen] provide；页面内容可用它实现需要主动滚动的交互（例如拖拽排序时
+ * 「拖到列表上下边缘自动滚动」）。不在页面列表内时为 null，调用点必须做空值回落。
+ */
+internal val LocalScopeListState = compositionLocalOf<LazyListState?> { null }
+
+/** 搜索跳转目标：position 为 LazyColumn 槽位（与 [PrefIndexItem.slot] 对应） */
+/**
+ * 一次待用户确认的作用域补全请求：用户点「确定」并由框架批准后执行 [proceed]（继续开启功能）。
+ */
+internal data class ScopeGateRequest(val missing: List<String>, val proceed: () -> Unit)
+
+data class ScrollTarget(val key: String, val position: Int)
+
+/**
+ * 单个偏好项的搜索索引条目（Function 页全局搜索由 [PrefScopeBuilder.snapshotIndex] 收集，
+ * 与旧 PrefsItem 语义对齐：key/title/summary 参与过滤，pageTarget 非空则命中即导航）。
+ */
+data class PrefIndexItem(
+    val key: String,
+    val title: String?,
+    val summary: String?,
+    val visible: () -> Boolean = { true },
+    val slot: Int,
+    val pageTarget: String? = null,
+)
+
+/**
+ * 渲染单元：一个 LazyColumn item 槽位。
+ *
+ * [segIndex]/[segCount] 用于把相邻条目合并成同一张分组卡片（首条上端 16dp 外圆角、尾条下端 16dp 外圆角、
+ * 组内条目不设内圆角与间距，见 [com.fr.colorostools.ui.theme.DesignTokens]）；
+ * [groupable] = false 的条目独占一张卡片（分类标题，以及 [PrefScopeBuilder.custom] 显式声明 standalone 的逃生舱）。
+ * [bare] = true 的条目（仅分类标题）完全裸渲染，不套任何卡片容器，对齐旧 PreferenceCategory 观感。
+ */
+internal class PrefEntry(
+    val slot: Int,
+    val itemKey: String,
+    val indexKey: String?,
+    val indexTitle: String?,
+    val indexSummary: String?,
+    val pageTarget: String?,
+    val groupable: Boolean,
+    val bare: Boolean,
+    val render: @Composable (slot: Int) -> Unit,
+) {
+    var segIndex: Int = 0
+    var segCount: Int = 1
+}
+
+/**
+ * Miuix 线卡片行的垂直间距（与 material 线的 8dp 分组间距语义对齐）：
+ * 列表首槽 0dp、每个分组首条 12dp（组间）、其余 0dp（组内条目连成一张卡片）。
+ *
+ * 取值来自 [MiuixPrefDefaults]，material 线不受影响。
+ */
+private fun miuixTopGap(slot: Int, segIndex: Int): Dp = when {
+    slot == 0 -> 0.dp
+    segIndex == 0 -> MiuixPrefDefaults.GroupGap
+    else -> MiuixPrefDefaults.ItemGap
+}
+
+/**
+ * Miuix 线的分段卡片容器（渲染缝里唯一的卡片主题分派点，与 material 线的 `MaterialItem` 对齐）：
+ * 按 index/count 复用 t11 的 [MiuixPrefItemShape]（圆角）与 [MiuixPrefItemColors]（底色 /
+ * 搜索跳转高亮）。**水平 12dp 内缩由列表级 `contentPadding` 单一提供**（`MiuixPrefDefaults.CardHorizontalInset`），
+ * 这里不再叠一层 item 级 padding（避免双倍内缩）；行内缩进仍由 Miuix 行自身的 `insideMargin(16dp)` 提供。
+ *
+ * 这里内联同一组 Miuix 原语而不用 `MiuixPrefItem` 的唯一原因：后者的签名没有 `highlighted` 参数，
+ * 而「高亮命中槽位」（[PrefScopeBuilder.highlightSlot]，搜索跳转后闪烁）是冻结语义，
+ * 必须在容器这一层读取；两者只能二选一，故在此组合同一组原语（渲染结果与 `MiuixPrefItem` 一致）。
+ */
+@Composable
+private fun MiuixScopeCard(
+    index: Int,
+    count: Int,
+    highlighted: Boolean,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = MiuixPrefItemShape(index = index, count = count),
+        color = MiuixPrefItemColors(highlighted = highlighted),
+    ) {
+        content()
+    }
+}
+
+/**
+ * 偏好页声明式 DSL —— 旧 BaseScopePreferenceFeagment 程序化 PreferenceScreen 的 Compose 等价物。
+ *
+ * 用法：
+ * ```
+ * ScopeScreen(state, sendValue = { k, v -> context.sendPrefsValue(pack, k, v) }) {
+ *     category("基础")
+ *     switch("key1", "标题", "摘要")
+ *     if (state.getBoolean("master", false)) {   // 条件可见性：任意偏好变更自动重求值
+ *         slider("key2", "滑条", 1..100)
+ *     }
+ *     page("其他页面", "statusbar_clock")
+ * }
+ * ```
+ *
+ * 构建 lambda 是普通（非 Composable）函数：每次重组重跑（等价旧 View 方案“重进页面刷新”，
+ * 但自动触发），因此条件判断用 PrefState 同步 getter 即天然响应式。搜索索引同样来自构建结果：
+ * Function 页可不在 UI 中渲染，直接用同一 lambda 收集 [PrefIndexItem]。
+ *
+ * 写值语义对齐旧代码：`state.set(key, value)` 先落 SharedPreferences（host 进程 hook 经
+ * remote prefs 同源可见），再经 [sendValue] 触发 `Context.sendPrefsValue(packName, key, value)`。
+ */
+class PrefScopeBuilder internal constructor(
+    internal val state: PrefState,
+) {
+    internal var sendValue: (key: String, value: Any) -> Unit = { _, _ -> }
+    internal var navigate: ((target: String, title: String?) -> Unit)? = null
+    internal var restart: (() -> Unit)? = null
+    internal var context: Context? = null
+    internal val highlightSlot = mutableStateOf<Int?>(null)
+
+    /** 作用域门禁：待用户确认的补全请求（由 [ScopeScreen] 渲染对话框） */
+    internal val pendingScopeGate = mutableStateOf<ScopeGateRequest?>(null)
+
+    internal val entries = ArrayList<PrefEntry>()
+
+    /** 每次重建前清空（ScopeScreen 每次重组前调用；外部索引收集同样先调用） */
+    fun beginBuild() {
+        entries.clear()
+    }
+
+    /** 当前构建轮次的搜索索引快照 */
+    fun snapshotIndex(): List<PrefIndexItem> = entries.mapNotNull { entry ->
+        entry.indexKey?.let { key ->
+            PrefIndexItem(
+                key,
+                entry.indexTitle,
+                entry.indexSummary,
+                { true },
+                entry.slot,
+                entry.pageTarget
+            )
+        }
+    }
+
+    @Composable
+    internal fun highlightColor(slot: Int): Color {
+        val target = highlightSlot.value == slot
+        return animateColorAsState(
+            targetValue = if (target) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+        ).value
+    }
+
+    /** 高亮（搜索跳转命中）时把卡片容器换成 primaryContainer */
+    @Composable
+    internal fun itemColors(slot: Int): ListItemColors {
+        val bg = highlightColor(slot)
+        return if (bg == Color.Transparent) {
+            materialGroupColors()
+        } else {
+            materialGroupColors(containerColor = bg)
+        }
+    }
+
+    /**
+     * 作用域门禁：功能开启前检查 [required] 是否已在框架中勾选。
+     * - 未声明 / 无缺失 → 立即执行 [proceed]
+     * - 有缺失 → 挂起 [proceed] 并记录待确认请求，由 [ScopeScreen] 弹窗；
+     *   用户点「确定」并经框架批准后自动补全作用域并继续执行
+     */
+    internal fun gateScope(required: Array<String>?, proceed: () -> Unit) {
+        if (required.isNullOrEmpty()) {
+            proceed()
+            return
+        }
+        val missing = ScopeGuard.missing(required)
+        if (missing.isEmpty()) {
+            proceed()
+            return
+        }
+        pendingScopeGate.value = ScopeGateRequest(missing, proceed)
+    }
+
+    private fun emit(
+        itemKey: String?,
+        indexKey: String?,
+        indexTitle: String?,
+        indexSummary: String?,
+        pageTarget: String? = null,
+        groupable: Boolean = true,
+        bare: Boolean = false,
+        render: @Composable (slot: Int) -> Unit,
+    ) {
+        val slot = entries.size
+        entries += PrefEntry(
+            slot = slot,
+            itemKey = itemKey ?: "slot-$slot",
+            indexKey = indexKey,
+            indexTitle = indexTitle,
+            indexSummary = indexSummary,
+            pageTarget = pageTarget,
+            groupable = groupable,
+            bare = bare,
+            render = render,
+        )
+    }
+
+    /**
+     * 计算分组：连续且 [PrefEntry.groupable] 的条目合并为一组。
+     *
+     * 分类标题（裸渲染）把相邻条目切成不同分组；滑条与普通自定义控件都属于组内选项行，
+     * 不再独占卡片——只有显式声明 standalone 的逃生舱条目才单独成卡。
+     */
+    internal fun computeSegments() {
+        var i = 0
+        while (i < entries.size) {
+            if (!entries[i].groupable) {
+                entries[i].segIndex = 0
+                entries[i].segCount = 1
+                i++
+                continue
+            }
+            var j = i
+            while (j + 1 < entries.size && entries[j + 1].groupable) j++
+            val count = j - i + 1
+            for (k in i..j) {
+                entries[k].segIndex = k - i
+                entries[k].segCount = count
+            }
+            i = j + 1
+        }
+    }
+
+    // ---------------- DSL 项 ----------------
+
+    /**
+     * 分类标题（对应旧 addCategory / categoryPreference）：不套卡片，裸渲染在分组卡片之上。
+     * [summary] 对应旧 PreferenceCategory 的 summary：与标题同组渲染（标题在上、说明在下），
+     * 不再作为独立的文字组件悬在分类之下。
+     */
+    fun category(title: String, summary: String? = null) =
+        emit(null, null, null, null, groupable = false, bare = true) { _ ->
+            if (LocalUiMode.current == UiMode.Miuix) {
+                MiuixPrefCategoryHeader(
+                    title = title,
+                    summary = summary,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp)
+                            .padding(vertical = 8.dp),
+                    )
+                    if (summary != null) {
+                        Text(
+                            text = summary,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+                        )
+                    }
+                }
+            }
+        }
+
+    /** 开关（对应 SwitchPreference + setOnPreferenceChangeListener）：整行点击 + Expressive 开关 */
+    fun switch(
+        key: String,
+        title: String,
+        summary: String? = null,
+        default: Boolean = false,
+        enabled: Boolean = true,
+        notify: Boolean = false,
+        leading: (@Composable () -> Unit)? = null,
+        /** 该功能需要的 LSPosed 作用域包名；打开开关前自动检测，缺失则弹窗补全 */
+        requiredScopes: Array<String>? = null,
+        beforeApply: ((Boolean, (Boolean) -> Unit) -> Unit)? = null,
+        onChange: ((Boolean) -> Unit)? = null,
+    ) = emit(key, key, title, summary) { slot ->
+        val checked by state.booleanFlow(key, default).collectAsStateWithLifecycle()
+        fun apply(newValue: Boolean) {
+            state.set(key, newValue)
+            if (notify) sendValue(key, newValue)
+            onChange?.invoke(newValue)
+        }
+        // beforeApply 允许在落盘前拦截（如生物识别验证通过才写入）；不提供时直接落盘
+        val writeValue: (Boolean) -> Unit = if (beforeApply != null) {
+            { newValue -> beforeApply(newValue, ::apply) }
+        } else {
+            ::apply
+        }
+        // 作用域门禁：仅在「打开」时检查，缺失则弹窗；用户确定后补全作用域并继续开启
+        val onCheckedChange: (Boolean) -> Unit = { newValue ->
+            if (newValue && requiredScopes != null) {
+                gateScope(requiredScopes) { writeValue(true) }
+            } else {
+                writeValue(newValue)
+            }
+        }
+        if (LocalUiMode.current == UiMode.Miuix) {
+            // Miuix 行自带 insideMargin(16dp)：不再套 material 线的 16dp 外层 padding，触感由行件补 VirtualKey
+            MiuixSwitchItem(
+                title = title,
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                summary = summary,
+                enabled = enabled,
+                startAction = leading,
+            )
+        } else {
+            Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                MaterialSwitchItem(
+                    title = title,
+                    summary = summary,
+                    colors = itemColors(slot),
+                    checked = checked,
+                    enabled = enabled,
+                    leading = leading,
+                    onCheckedChange = onCheckedChange,
+                )
+            }
+        }
+    }
+
+    /** 单选列表（对应 DropDownPreference：条目文字 + entryValues 存储值），尾部显示当前值 */
+    fun list(
+        key: String,
+        title: String,
+        entries: Array<String>,
+        entryValues: Array<String>,
+        default: String = "",
+        summary: String? = null,
+        leading: (@Composable () -> Unit)? = null,
+        enabled: Boolean = true,
+        notify: Boolean = false,
+        onChange: ((String) -> Unit)? = null,
+    ) = emit(key, key, title, summary) { slot ->
+        val current by state.stringFlow(key, default).collectAsStateWithLifecycle()
+        val currentLabel = entries.getOrNull(entryValues.indexOf(current)) ?: current
+        val shownSummary = summary?.replace("%s", currentLabel)
+        if (LocalUiMode.current == UiMode.Miuix) {
+            MiuixDropdownItem(
+                title = title,
+                items = entries.toList(),
+                selectedIndex = entryValues.indexOf(current).coerceAtLeast(0),
+                onItemSelected = { index ->
+                    val newValue = entryValues.getOrNull(index) ?: return@MiuixDropdownItem
+                    state.set(key, newValue)
+                    if (notify) sendValue(key, newValue)
+                    onChange?.invoke(newValue)
+                },
+                summary = shownSummary,
+                enabled = enabled,
+                startAction = leading,
+            )
+        } else {
+            Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                MaterialDropdownItem(
+                    title = title,
+                    summary = shownSummary,
+                    items = entries.toList(),
+                    colors = itemColors(slot),
+                    enabled = enabled,
+                    leading = leading,
+                    selectedIndex = entryValues.indexOf(current).coerceAtLeast(0),
+                    onItemSelected = { index ->
+                        val newValue = entryValues.getOrNull(index) ?: return@MaterialDropdownItem
+                        state.set(key, newValue)
+                        if (notify) sendValue(key, newValue)
+                        onChange?.invoke(newValue)
+                    },
+                )
+            }
+        }
+    }
+
+    /**
+     * 整数滑条（对应 SeekBarPreference；拖动结束才落盘，避免 commit() 拖拽风暴）。
+     *
+     * 滑条属于分组内的「选项行」，与相邻开关/滑条合并成同一张卡片。
+     */
+    fun slider(
+        key: String,
+        title: String,
+        valueRange: IntRange,
+        step: Int = 1,
+        default: Int? = null,
+        summary: String? = null,
+        valueLabel: ((Int) -> String)? = null,
+        enabled: Boolean = true,
+        notify: Boolean = false,
+        onChange: ((Int) -> Unit)? = null,
+    ) = emit(key, key, title, summary) { slot ->
+        val stored by state.intFlow(key, default ?: valueRange.first).collectAsStateWithLifecycle()
+        if (LocalUiMode.current == UiMode.Miuix) {
+            val min = valueRange.first
+            val max = valueRange.last
+            var dragging by remember { mutableStateOf(false) }
+            var dragValue by remember { mutableFloatStateOf(0f) }
+            val storedValue = stored.coerceIn(min, max).toFloat()
+            val shown = if (dragging) dragValue else storedValue
+            // 拖动结束才落盘（对齐 material 线：避免 commit() 拖拽风暴）
+            fun persist(value: Float) {
+                dragging = false
+                val stepped = (((value - min) / step).roundToInt() * step + min).coerceIn(min, max)
+                dragValue = stepped.toFloat()
+                state.set(key, stepped)
+                if (notify) sendValue(key, stepped)
+                onChange?.invoke(stepped)
+            }
+            MiuixSliderRow(
+                value = shown,
+                onValueChange = {
+                    dragging = true
+                    dragValue = it
+                },
+                title = title,
+                summary = summary,
+                valueText = valueLabel?.invoke(shown.roundToInt()) ?: shown.roundToInt().toString(),
+                enabled = enabled,
+                valueRange = min.toFloat()..max.toFloat(),
+                steps = ((max - min) / step - 1).coerceAtLeast(0),
+                onValueChangeFinished = { persist(dragValue) },
+            )
+        } else {
+            val sliderState = rememberSliderState(
+                value = stored.coerceIn(valueRange.first, valueRange.last).toFloat(),
+                steps = ((valueRange.last - valueRange.first) / step - 1).coerceAtLeast(0),
+                trackRange = valueRange.first.toFloat()..valueRange.last.toFloat(),
+            )
+            var dragging by remember { mutableStateOf(false) }
+            // 外部值变化同步（拖动期间不覆盖用户手势）
+            if (!dragging) {
+                sliderState.value = stored.coerceIn(valueRange.first, valueRange.last).toFloat()
+            }
+            val current = sliderState.value.roundToInt()
+            Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                MaterialItemContainer(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(title, style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                valueLabel?.invoke(current) ?: current.toString(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                        summary?.let {
+                            Text(
+                                it,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Slider(
+                            state = sliderState,
+                            onValueChange = {
+                                dragging = true
+                                sliderState.value = it
+                            },
+                            onValueChangeFinished = {
+                                dragging = false
+                                val min = valueRange.first
+                                val stepped = (((sliderState.value - min) / step).roundToInt() * step + min)
+                                    .coerceIn(valueRange.first, valueRange.last)
+                                sliderState.value = stepped.toFloat()
+                                state.set(key, stepped)
+                                if (notify) sendValue(key, stepped)
+                                onChange?.invoke(stepped)
+                            },
+                            enabled = enabled,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /** 文本输入（对应 EditTextPreference，M3 对话框 + OutlinedTextField） */
+    fun editText(
+        key: String,
+        title: String,
+        summary: String? = null,
+        hint: String? = null,
+        dialogMessage: String? = null,
+        default: String = "",
+        keyboardType: KeyboardType = KeyboardType.Text,
+        enabled: Boolean = true,
+        notify: Boolean = false,
+        onChange: ((String) -> Unit)? = null,
+    ) = emit(key, key, title, summary) { slot ->
+        val current by state.stringFlow(key, default).collectAsStateWithLifecycle()
+        var showDialog by remember { mutableStateOf(false) }
+        if (LocalUiMode.current == UiMode.Miuix) {
+            // 编辑值镜像：MiuixPrefTextDialog 的 onConfirm 无参，编辑值经 onValueChange 实时回抛
+            var pendingText by remember { mutableStateOf(current) }
+            MiuixListItem(
+                title = title,
+                summary = current.ifBlank { summary ?: "" },
+                onClick = {
+                    pendingText = current
+                    showDialog = true
+                },
+                enabled = enabled,
+            )
+            MiuixPrefTextDialog(
+                show = showDialog,
+                title = title,
+                value = current,
+                onValueChange = { pendingText = it },
+                onConfirm = {
+                    showDialog = false
+                    state.set(key, pendingText)
+                    if (notify) sendValue(key, pendingText)
+                    onChange?.invoke(pendingText)
+                },
+                onDismiss = { showDialog = false },
+                summary = dialogMessage,
+                placeholder = hint,
+                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            )
+        } else {
+            Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                MaterialListItem(
+                    onClick = { showDialog = true },
+                    enabled = enabled,
+                    colors = itemColors(slot),
+                    headlineContent = { Text(title) },
+                    supportingContent = { Text(current.ifBlank { summary ?: "" }) },
+                )
+            }
+            if (showDialog) {
+                var text by remember { mutableStateOf(current) }
+                AlertDialog(
+                    onDismissRequest = { showDialog = false },
+                    title = { Text(title) },
+                    text = {
+                        Column {
+                            dialogMessage?.let {
+                                Text(
+                                    it,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            OutlinedTextField(
+                                value = text,
+                                onValueChange = { text = it },
+                                placeholder = hint?.let { { Text(it) } },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                showDialog = false
+                                state.set(key, text)
+                                if (notify) sendValue(key, text)
+                                onChange?.invoke(text)
+                            },
+                        ) { Text(stringResource(android.R.string.ok)) }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = {
+                            showDialog = false
+                        }) { Text(stringResource(android.R.string.cancel)) }
+                    },
+                )
+            }
+        }
+    }
+
+    /**
+     * 页面入口（对应旧 addFragmentPreference：跳转其他作用域页；同时登记搜索索引）。
+     * 目标页不可达（spec.isVisible false / 单 App 作用域未安装 / 目标页无可见条目）时不发射入口，
+     * 对齐旧父页入口行 isVisible 条件与「选项=0 → 入口消失」规则（判断集中在 [ScopePageRegistry.isPageReachable]）。
+     */
+    fun page(
+        title: String,
+        target: String,
+        summary: String? = null,
+        enabled: Boolean = true,
+    ) {
+        val ctx = context
+        if (ctx != null && !ScopePageRegistry.isPageReachable(ctx, ScopePageRegistry.pageTargetMap[target] ?: target)) {
+            return
+        }
+        emit("page:$target", "page:$target", title, summary, pageTarget = target) { slot ->
+            if (LocalUiMode.current == UiMode.Miuix) {
+                MiuixArrowItem(
+                    title = title,
+                    summary = summary,
+                    onClick = { navigate?.invoke(target, title) },
+                    enabled = enabled,
+                )
+            } else {
+                Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                    MaterialListItem(
+                        onClick = { navigate?.invoke(target, title) },
+                        enabled = enabled,
+                        colors = itemColors(slot),
+                        headlineContent = { Text(title) },
+                        supportingContent = summary?.let { { Text(it) } },
+                        trailingContent = {
+                            Icon(
+                                Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
+                    )
+                }
+            }
+        }
+    }
+
+    /** 纯点击入口（跳转外部 Activity / 设置 / shell 命令等，非作用域页导航、无值/开关）：分组卡片内的一行 */
+    fun click(
+        title: String,
+        summary: String? = null,
+        enabled: Boolean = true,
+        leading: (@Composable () -> Unit)? = null,
+        value: String? = null,
+        trailing: (@Composable () -> Unit)? = null,
+        /** 该入口需要的 LSPosed 作用域包名；点击前自动检测，缺失则弹窗补全 */
+        requiredScopes: Array<String>? = null,
+        onLongClick: (() -> Unit)? = null,
+        onClick: (() -> Unit)? = null,
+    ) = emit(null, null, title, summary) { slot ->
+        // 作用域门禁：点击入口与开关同语义（缺失先弹窗，确定后继续点击动作）
+        val activate: (() -> Unit)? = onClick?.let { original ->
+            { if (requiredScopes.isNullOrEmpty()) original() else gateScope(requiredScopes, original) }
+        }
+        if (LocalUiMode.current == UiMode.Miuix) {
+            // value 非空 → 导航入口（库内箭头）；否则纯点击行（可选自定义 trailing）。
+            // Miuix 行自带 insideMargin(16dp)：不再套 material 线的 16dp 外层 padding
+            if (value != null) {
+                MiuixArrowItem(
+                    title = title,
+                    summary = summary,
+                    startAction = leading,
+                    onClick = activate,
+                    enabled = enabled,
+                )
+            } else {
+                MiuixListItem(
+                    title = title,
+                    summary = summary,
+                    onClick = activate,
+                    onLongClick = onLongClick,
+                    enabled = enabled,
+                    startAction = leading,
+                    endActions = trailing?.let { content -> { content() } },
+                )
+            }
+        } else {
+            Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                MaterialListItem(
+                    onClick = activate,
+                    onLongClick = onLongClick,
+                    enabled = enabled,
+                    colors = itemColors(slot),
+                    headlineContent = { Text(title) },
+                    supportingContent = summary?.let { { Text(it) } },
+                    leadingContent = leading,
+                    trailingContent = trailing ?: value?.let { v ->
+                        {
+                            Text(
+                                text = v,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    },
+                )
+            }
+        }
+    }
+
+    /**
+     * 逃生舱：任意自定义 Composable（ColorPicker、应用选择器等特殊控件用），receiver 可访问 state/restart 等。
+     *
+     * [standalone] = true 时独占一张卡片（非「选项行」内容，如搜索框、页面级 body）；
+     * 默认 false 时并入所在分组卡片——分类分组内不允许出现独立卡片。
+     * [bare] = true 的条目自身不套卡片容器，因而永远不参与分组合并。
+     */
+    fun custom(
+        key: String? = null,
+        title: String? = null,
+        summary: String? = null,
+        bare: Boolean = false,
+        standalone: Boolean = false,
+        content: @Composable PrefScopeBuilder.(slot: Int) -> Unit,
+    ) = emit(
+        key, key, title, summary,
+        groupable = !standalone && !bare,
+        bare = bare,
+        render = { slot -> content(this, slot) },
+    )
+}
+
+/**
+ * 作用域偏好页主体（无 Scaffold，供 ComposeView 容器 / NavHost 内容插槽使用，标题栏由宿主提供）。
+ *
+ * 与旧 BaseScopePreferenceFeagment 行为对齐：
+ * - [sendValue] 对应 `Context.sendPrefsValue(packName, key, value)`（dataChannel 通知宿主）
+ * - [scrollTarget] 对应搜索跳转（scrollKey/scrollPosition）：滚动到槽位 + 高亮闪烁
+ * - [onNavigate] 对应页面入口跳转（page DSL 项）
+ */
+@Composable
+fun ScopeScreen(
+    state: PrefState,
+    modifier: Modifier = Modifier,
+    sendValue: (key: String, value: Any) -> Unit = { _, _ -> },
+    scrollTarget: ScrollTarget? = null,
+    onNavigate: ((target: String, title: String?) -> Unit)? = null,
+    onRestart: (() -> Unit)? = null,
+    onRefresh: (suspend () -> Unit)? = null,
+    fullContent: (@Composable LazyItemScope.(PrefScopeBuilder) -> Unit)? = null,
+    content: PrefScopeBuilder.() -> Unit,
+) {
+    // 订阅 revision：任何偏好写入都会重组本页 → 构建 lambda 重跑 → 条件可见性自动重求值。
+    // 必须读取 .value：仅调用 collectAsStateWithLifecycle() 并丢弃返回值，快照订阅不会建立，
+    // 条件可见性（基于 state.getXxx() 的 if/let 分支）将不会随偏好写入重求值。
+    // 同一个 State 对象还要交给列表内容 lambda 读取一次（见 listItems）：
+    // 只有列表内容自己也订阅 revision，偏好写入后条目才会重算、条件行才会出现。
+    val revisionState = state.revision.collectAsStateWithLifecycle()
+    revisionState.value
+
+    val builder = remember(state) { PrefScopeBuilder(state) }
+    builder.sendValue = sendValue
+    builder.navigate = onNavigate
+    builder.restart = onRestart
+    builder.context = LocalContext.current.applicationContext
+    builder.beginBuild()
+    builder.content()
+    builder.computeSegments()
+
+    val listState = rememberLazyListState()
+    LaunchedEffect(scrollTarget) {
+        val target = scrollTarget ?: return@LaunchedEffect
+        val slot = if (target.key.isNotBlank()) {
+            // 按索引 key 解析槽位（条目在构建后位置可能因条件可见性变化而偏移）
+            builder.entries.firstOrNull { it.indexKey == target.key }?.slot ?: return@LaunchedEffect
+        } else {
+            target.position.takeIf { it >= 0 } ?: return@LaunchedEffect
+        }
+        listState.animateScrollToItem(slot)
+        builder.highlightSlot.value = slot
+        delay(2500.milliseconds)
+        if (builder.highlightSlot.value == slot) builder.highlightSlot.value = null
+    }
+
+    // 唯一的 LazyColumn item 缝：条目描述（槽位/分段/元数据）只构建一次，主题差异只在这里分派
+    val listItems: LazyListScope.() -> Unit = {
+        // 条目重建必须在 LazyColumn 的 content lambda 内执行（而不是 ScopeScreen 函数体）：
+        // 本 lambda 由 LazyList 的 derivedStateOf 包裹，builder.content() 里对页面级状态
+        // （systemInfo / rows / entries / filtered 等 mutableStateOf）的读取因此进入快照订阅，
+        // 任一变化都会让条目重算、列表刷新。放在函数体里这些读取不参与列表追踪：
+        // 功能树 rows 由空变满不刷新（白屏）、搜索结果不出现、SYSTEMINFO 切页后才显示。
+        //
+        // revision 也必须在 lambda 内部读一次：偏好写入只让 ScopeScreen 重组（函数体里那次
+        // beginBuild/content 会用新值重建 entries），列表内容本身不重算就不会去用新的 entries，
+        // 行声明里的 if (state.getString(...)) 条件分支不重求值，条件条目永远不出现
+        //（实测：不读 revision 时写入偏好后只有函数体重建、条目内容不重组）。
+        // 读一次 revision 让列表内容直接依赖它，与 systemInfo / rows 走同一条快照链。
+        revisionState.value
+        builder.beginBuild()
+        builder.content()
+        builder.computeSegments()
+        if (fullContent != null) {
+            item(key = "full") { fullContent(this, builder) }
+        } else {
+            builder.entries.forEach { entry ->
+                item(key = entry.itemKey) {
+                    if (entry.bare) {
+                        // 分类标题：不套卡片，对齐旧 PreferenceCategory 的观感（标题裸渲染在分组卡片之上）。
+                        // 顶部间距沿用原卡片路径的取值，纵向节奏与改动前一致。
+                        val topGap = if (LocalUiMode.current == UiMode.Miuix) {
+                            miuixTopGap(entry.slot, entry.segIndex)
+                        } else {
+                            if (entry.slot == 0) 0.dp else 8.dp
+                        }
+                        // Miuix 线：分类标题是裸元素（不套卡片），故不应跟随卡片的 12dp 列表级内缩；
+                        // 用 offset 抵消该内缩，使标题贴齐屏边 16dp，与 material 线一致。
+                        val bareModifier = if (LocalUiMode.current == UiMode.Miuix) {
+                            Modifier.offset(x = -MiuixPrefDefaults.CardHorizontalInset)
+                        } else {
+                            Modifier
+                        }
+                        Box(modifier = Modifier.padding(top = topGap).then(bareModifier)) {
+                            entry.render(entry.slot)
+                        }
+                    } else if (LocalUiMode.current == UiMode.Miuix) {
+                        MiuixScopeCard(
+                            index = entry.segIndex,
+                            count = entry.segCount,
+                            highlighted = builder.highlightSlot.value == entry.slot,
+                            modifier = Modifier.padding(top = miuixTopGap(entry.slot, entry.segIndex)),
+                        ) {
+                            entry.render(entry.slot)
+                        }
+                    } else {
+                        MaterialItem(index = entry.segIndex, count = entry.segCount) {
+                            Box(
+                                modifier = Modifier.padding(
+                                    top = when {
+                                        entry.slot == 0 -> 0.dp
+                                        entry.segIndex == 0 -> 8.dp
+                                        // 组内条目：0dp 与 Miuix 线一致，同一分组拼成一张连续卡片
+                                        else -> DesignTokens.ItemGap
+                                    }
+                                )
+                            ) {
+                                entry.render(entry.slot)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    val list: @Composable (Modifier) -> Unit = { listModifier ->
+        if (LocalUiMode.current == UiMode.Miuix) {
+            // Miuix 线：滚动到底触感 + 自绘回弹；关掉平台 overscroll glow 以免两套回弹叠加。
+            // 顶部 inset 由 LocalScopeTopInset 注入（默认 0.dp，provide 方是页面骨架 Miuix 分支）；
+            // 水平 12dp 内缩是列表级单一来源（item 层不再叠）；bottom 见下方 inset 计算。
+            // 底部 inset：悬浮胶囊底栏盖在内容之上（Miuix 骨架的 contentWindowInsets 只含水平方向，
+            // innerPadding.bottom = 0），列表必须自己预留胶囊高度；系统导航栏/标题栏同理。
+            // 取值统一走 materialBottomInset（导航栏/caption bar + 悬浮胶囊占位）。
+            LazyColumn(
+                modifier = listModifier
+                    .scrollEndHaptic()
+                    .overScrollVertical(),
+                state = listState,
+                contentPadding = PaddingValues(
+                    top = LocalScopeTopInset.current,
+                    start = MiuixPrefDefaults.CardHorizontalInset,
+                    end = MiuixPrefDefaults.CardHorizontalInset,
+                    bottom = materialBottomInset(base = 8.dp),
+                ),
+                overscrollEffect = null,
+                content = listItems,
+            )
+        } else {
+            LazyColumn(
+                modifier = listModifier,
+                state = listState,
+                contentPadding = PaddingValues(bottom = 8.dp),
+                content = listItems,
+            )
+        }
+    }
+    // 列表状态下发到页面内容：LazyColumn 的 item 内容是本 provider 的后代，因此页面里的
+    // 自定义内容（如排序列表）也能拿到它，用于「拖到列表边缘自动滚动」这类主动滚动交互。
+    CompositionLocalProvider(LocalScopeListState provides listState) {
+        if (onRefresh != null) {
+            var refreshing by remember { mutableStateOf(false) }
+            val scope = rememberCoroutineScope()
+            PullToRefreshBox(
+                isRefreshing = refreshing,
+                onRefresh = {
+                    scope.launch {
+                        refreshing = true
+                        try {
+                            onRefresh()
+                        } finally {
+                            refreshing = false
+                        }
+                    }
+                },
+                modifier = modifier,
+            ) { list(Modifier.fillMaxSize()) }
+        } else {
+            list(modifier)
+        }
+    }
+
+    // 作用域门禁对话框：条目在构建期发起的补全请求在此渲染（位于列表之外，不受 LazyColumn 回收影响）
+    val gateRequest = builder.pendingScopeGate.value
+    if (gateRequest != null) {
+        val gateContext = LocalContext.current
+        val gateUiScope = rememberCoroutineScope()
+        ScopeGateDialog(
+            missing = gateRequest.missing,
+            onDismiss = { builder.pendingScopeGate.value = null },
+            onConfirm = {
+                builder.pendingScopeGate.value = null
+                // 提交给框架（framework 会再弹一次自己的授权确认）；回调可能在 Binder 线程
+                ScopeGuard.request(gateRequest.missing) { ok, message ->
+                    gateUiScope.launch(Dispatchers.Main) {
+                        if (ok) {
+                            // 框架已加入作用域：继续被挂起的动作（开启功能）
+                            gateRequest.proceed()
+                        } else {
+                            gateContext.showToast(
+                                message ?: gateContext.getString(R.string.scope_gate_failed)
+                            )
+                        }
+                    }
+                }
+            },
+        )
+    }
+}
