@@ -60,6 +60,42 @@ import kotlin.random.Random
 import kotlin.system.exitProcess
 
 /**
+ * 设备信息按字段保存，显示时再根据当前语言解析标题（主页卡片按行渲染用）。
+ */
+data class DeviceInfoEntry(val labelRes: Int, val value: String)
+
+/**
+ * 结构化的设备信息：主页设备卡按行渲染，标题在展示侧用 [labelRes] 现场解析，
+ * 避免把已翻译的标题固化在数据里（切换语言后标题不会跟着变）。
+ */
+fun getDeviceInfoEntries(
+    controller: IGlobalFuncController? = null,
+    otaVersion: String? = null,
+): List<DeviceInfoEntry> {
+    fun value(vararg parts: String?): String = parts
+        .filterNot { it.isNullOrBlank() || it.equals("null", ignoreCase = true) }
+        .joinToString(" ").ifBlank { "—" }
+    // 壳子阶段控制器未接入：OTA 版本依次取 controller → 调用方已读到的值 →
+    // DeviceUtils.resolveOtaVersion()。**必须与 checkDexOptimize 共用同一解析入口**，
+    // 否则「忽略本次系统更新」写入的值与下次比较的值可能不同源，弹窗反复出现。
+    val ota = controller?.otaVersion?.takeUnless { it.isBlank() || it == "null" }
+        ?: otaVersion?.takeUnless { it.isBlank() || it == "null" }
+        ?: DeviceUtils.resolveOtaVersion().takeUnless { it.isBlank() }
+    val osCode = getOSVersionCode
+    val osName = if (osCode > 0) runCatching { getOSVersionName(osCode) }.getOrNull()
+        ?.takeUnless { it == "null" } else null
+    val systemVersion = "Android ${Build.VERSION.RELEASE} (${Build.VERSION.SDK_INT})" +
+            (osName?.let { " · OS $it ($osCode)" } ?: "")
+    return buildList {
+        add(DeviceInfoEntry(R.string.model, value(getFingerPrintBrand, getFingerPrintModel, getModelMarketName())))
+        add(DeviceInfoEntry(R.string.system, systemVersion))
+        add(DeviceInfoEntry(R.string.version, value(ota)))
+        add(DeviceInfoEntry(R.string.product, value(Build.PRODUCT, Build.DEVICE, controller?.cpuInfo, controller?.prjNameInfo, controller?.slotInfo)))
+        add(DeviceInfoEntry(R.string.build_version, value(Build.DISPLAY, getManifestEndVersion(controller?.manifestVersion))))
+    }
+}
+
+/**
  * 获取设备信息
  * @receiver Context
  * @return String

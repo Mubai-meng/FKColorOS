@@ -26,16 +26,15 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.AddToHomeScreen
-import androidx.compose.material.icons.filled.AutoFixHigh
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.Terminal
-import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.material.icons.rounded.Adb
+import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
@@ -43,7 +42,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,8 +50,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
@@ -62,17 +58,16 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
 import com.fr.colorostools.IAdbDebugController
 import com.fr.colorostools.ITileServiceController
 import com.fr.colorostools.R
 import com.fr.colorostools.ui.activity.MainActivity
 import com.fr.colorostools.ui.compose.components.AppPickerDialog
 import com.fr.colorostools.ui.compose.components.LocalScopeTopInset
-import com.fr.colorostools.ui.compose.components.PrefIconBadge
+import com.fr.colorostools.ui.compose.components.MainPageActivationEffect
+import com.fr.colorostools.ui.compose.components.OtherTopBarActions
+import com.fr.colorostools.ui.compose.components.PrefIcon
 import com.fr.colorostools.ui.compose.components.ScopeScreen
-import com.fr.colorostools.ui.compose.components.TopBarActionButton
 import com.fr.colorostools.ui.compose.components.material.MaterialPageScaffold
 import com.fr.colorostools.ui.theme.LocalUiMode
 import com.fr.colorostools.ui.theme.UiMode
@@ -107,7 +102,7 @@ import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun OtherPage(activity: MainActivity) {
+fun OtherPage(activity: MainActivity, isCurrentPage: Boolean = true) {
     val context = LocalContext.current
     val settings = remember { PrefState.of(context, SettingsPrefs) }
     val otherPrefs = remember { PrefState.of(context, OtherPrefs) }
@@ -125,15 +120,17 @@ fun OtherPage(activity: MainActivity) {
     // 壳子阶段：tiles / adb 的 root 控制器服务尚未接入，控制器恒为 null，
     // 相关入口（触控采样率 / 远程 ADB）在控制器就绪后才出现。
     // 后续接入 hook 时恢复 loadControllers()（TilesService.get / AdbService.get）即可。
+    // 预组合的其他标签页不发起服务请求：只在当前页首次激活/恢复前台时触发。
+    MainPageActivationEffect(
+        isCurrentPage = isCurrentPage,
+        onFirstActive = { },
+        onResume = { },
+    )
 
     MaterialPageScaffold(
         title = stringResource(R.string.nav_other),
         actions = {
-            TopBarActionButton(
-                onClick = { showOptimizePicker = true },
-                contentDescription = "优化App",
-                painter = rememberVectorPainter(Icons.Filled.AutoFixHigh),
-            )
+            OtherTopBarActions(onOptimize = { showOptimizePicker = true })
         },
     ) { padding ->
         val layoutDirection = LocalLayoutDirection.current
@@ -162,11 +159,14 @@ fun OtherPage(activity: MainActivity) {
                 state = settings,
                 modifier = scopeModifier,
             ) {
-                // 全部入口合并为一张分段卡片（KernelSU 主题页外观）
+                // 快捷入口、显示与触控、调试各自成组。
+                group()
                 click(
                     title = context.getString(R.string.quick_entry),
                     summary = context.getString(R.string.quick_entry_summary),
-                    leading = { PrefIconBadge(Icons.Filled.Bolt, Color(0xFFFF9800)) },
+                    leading = { PrefIcon(Icons.AutoMirrored.Rounded.OpenInNew) },
+                    value = "",
+                    trailing = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null) },
                     onClick = {
                         activity.requestFunctionNavigation(
                             "quick_entry", context.getString(R.string.quick_entry)
@@ -177,26 +177,28 @@ fun OtherPage(activity: MainActivity) {
                     click(
                         title = context.getString(R.string.tile_list),
                         summary = context.getString(R.string.tile_list_summary),
-                        leading = { PrefIconBadge(Icons.Filled.GridView, Color(0xFF4CAF50)) },
+                        leading = { PrefIcon(Icons.Rounded.GridView) },
                         onClick = {
                             context.showToast(context.getString(R.string.tile_list_click_tips))
                             showTileDialog = true
                         },
                     )
                 }
+                group()
                 if (touchModeNow) {
                     click(
                         title = context.getString(R.string.set_touch_sampling_rate_tile_level),
                         summary = context.getString(R.string.set_touch_sampling_rate_tile_level_summary),
-                        leading = { PrefIconBadge(Icons.Filled.TouchApp, Color(0xFF009688)) },
+                        leading = { PrefIcon(Icons.Rounded.TouchApp) },
                         onClick = { showTouchDialog = true },
                     )
                 }
                 if (hasAdbNow) {
+                    group()
                     click(
                         title = context.getString(R.string.remote_adb_debug_title),
                         summary = context.getString(R.string.remote_adb_debug_summary),
-                        leading = { PrefIconBadge(Icons.Filled.Terminal, Color(0xFF607D8B)) },
+                        leading = { PrefIcon(Icons.Rounded.Adb) },
                         onClick = { showAdbDialog = true },
                     )
                 }

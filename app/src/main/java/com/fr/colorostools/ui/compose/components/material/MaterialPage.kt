@@ -1,6 +1,5 @@
 /*
- * ColorOSTools 统一页面外壳：与 KernelSU 主题页（ThemeScreen）一致的 Expressive 外观。
- * 顶层固定标题 AppBar（标题与返回键/动作键同行，不随上滑折叠）+ surfaceContainer 底色 + 16dp 内容边距。
+ * FKColorOS 页面外壳：Material 与 Miuix 分别使用各自原生的可折叠大标题。
  */
 package com.fr.colorostools.ui.compose.components.material
 
@@ -17,38 +16,42 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import com.fr.colorostools.ui.compose.components.miuix.MiuixBlurredBar
-import com.fr.colorostools.ui.compose.components.miuix.MiuixCompactTopBar
-import com.fr.colorostools.ui.compose.components.miuix.rememberMiuixBlurBackdrop
-import com.fr.colorostools.ui.shell.LocalEnableBlur
-import com.fr.colorostools.ui.theme.DesignTokens
 import com.fr.colorostools.ui.theme.LocalUiMode
 import com.fr.colorostools.ui.theme.UiMode
-// Miuix 线骨架用的库件（与 KernelSU SettingsMiuix.kt / 本仓库 ThemeScreenMiuix.kt 同一批）
+// Miuix 页面骨架使用的库组件。
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.TopAppBar as MiuixTopAppBar
+import top.yukonga.miuix.kmp.basic.TopAppBarState as MiuixTopAppBarState
+import top.yukonga.miuix.kmp.basic.rememberTopAppBarState as rememberMiuixTopAppBarState
+
+private data class HeaderScrollPosition(val collapsedFraction: Float, val contentOffset: Float)
 
 /**
  * 宿主是否已经提供底部导航栏（MainShell 的 NavigationBar 已消费系统导航栏 inset）。
@@ -84,18 +87,6 @@ fun materialBottomInset(base: Dp = 16.dp): Dp {
 }
 
 /**
- * Miuix 线页面骨架下发给内容的真实内边距。
- * material 线恒为 null（[ExpressiveList] 因此走 m3 分支，取值与分派前完全一致）。
- */
-@Immutable
-private class MiuixPageScaffoldValues(
-    val innerPadding: PaddingValues,
-)
-
-/** Miuix 线页面骨架的内部传递通道：由 [MaterialPageScaffold] 提供、[ExpressiveList] 消费。 */
-private val LocalMiuixPageScaffold = staticCompositionLocalOf<MiuixPageScaffoldValues?> { null }
-
-/**
  * 统一页面外壳（无返回键时传 onBack = null，用于底部导航主页面）。
  */
 @Composable
@@ -115,11 +106,42 @@ fun MaterialPageScaffold(
     val movableContent = remember {
         movableContentOf<PaddingValues> { innerPadding -> currentContent.value(innerPadding) }
     }
-    // Miuix 线：换成 KernelSU 骨架。material 线分支保持原样（只加分支，取值未改）。
-    if (LocalUiMode.current == UiMode.Miuix) {
+    val uiMode = LocalUiMode.current
+    val materialState = rememberTopAppBarState()
+    val miuixState = rememberMiuixTopAppBarState()
+    var previousUiMode by remember { mutableStateOf(uiMode) }
+    var pendingHeaderPosition by remember(uiMode) {
+        mutableStateOf(
+            when {
+                previousUiMode == uiMode -> null
+                previousUiMode == UiMode.Miuix -> HeaderScrollPosition(miuixState.collapsedFraction, miuixState.contentOffset)
+                else -> HeaderScrollPosition(materialState.collapsedFraction, materialState.contentOffset)
+            }
+        )
+    }
+    SideEffect { previousUiMode = uiMode }
+    // 两套顶栏各自保留原生状态；目标顶栏测量后再按折叠比例换算，避免重置标题。
+    val restoreHeaderPosition = Modifier.onSizeChanged {
+        val position = pendingHeaderPosition ?: return@onSizeChanged
+        val limit = if (uiMode == UiMode.Miuix) miuixState.heightOffsetLimit else materialState.heightOffsetLimit
+        if (!limit.isFinite() || limit == -Float.MAX_VALUE) return@onSizeChanged
+        val offset = limit * position.collapsedFraction.coerceIn(0f, 1f)
+        if (uiMode == UiMode.Miuix) {
+            miuixState.heightOffset = offset
+            miuixState.contentOffset = position.contentOffset
+        } else {
+            materialState.heightOffset = offset
+            materialState.contentOffset = position.contentOffset
+        }
+        pendingHeaderPosition = null
+    }
+    // 两条外观线分别使用各自的原生顶栏组件与滚动行为。
+    if (uiMode == UiMode.Miuix) {
         MiuixPageScaffold(
             title = title,
             modifier = modifier,
+            topAppBarState = miuixState,
+            topAppBarModifier = restoreHeaderPosition,
             onBack = onBack,
             actions = actions,
             floatingActionButton = floatingActionButton,
@@ -128,23 +150,19 @@ fun MaterialPageScaffold(
         )
         return
     }
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(materialState)
     MaterialScaffold(
         modifier = modifier,
         topBar = {
-            TopAppBar(
-                expandedHeight = DesignTokens.TopBarHeight,
+            LargeFlexibleTopAppBar(
+                modifier = restoreHeaderPosition,
                 navigationIcon = {
                     if (onBack != null) MaterialTopBarBackButton(onClick = onBack)
                 },
-                title = {
-                    Text(
-                        title,
-                        fontSize = DesignTokens.TopBarTitleSize,
-                        fontWeight = FontWeight.Medium,
-                    )
-                },
+                title = { Text(title) },
                 actions = actions,
                 colors = materialTopAppBarColors(),
+                scrollBehavior = scrollBehavior,
                 windowInsets = WindowInsets.safeDrawing.only(
                     WindowInsetsSides.Top + WindowInsetsSides.Horizontal
                 ),
@@ -152,30 +170,28 @@ fun MaterialPageScaffold(
         },
         floatingActionButton = floatingActionButton,
         bottomBar = bottomBar,
-        contentWindowInsets = WindowInsets.safeDrawing.only(
-            WindowInsetsSides.Top + WindowInsetsSides.Horizontal
-        ),
-        content = movableContent,
-    )
+        contentWindowInsets = if (LocalBottomBarPresent.current) {
+            WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+        } else {
+            WindowInsets.safeDrawing
+        },
+    ) { innerPadding ->
+        Box(Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)) {
+            movableContent(innerPadding)
+        }
+    }
 }
 
 /**
- * Miuix 线页面骨架（KernelSU SettingsMiuix.kt:75-107 定式，与本仓库 ThemeScreenMiuix.kt:279-326 同款）：
- * 模糊采样层 → MiuixBlurredBar{MiuixCompactTopBar} → Scaffold(popupHost = {}) → 内容列表。
- *
- * 与调用点的契约（调用点冻结、零改动）：content 拿到的仍是真实骨架内边距（top = 顶栏实测高度），
- * 因此把内边距当 `Modifier.padding(padding)` 用的调用点保持正确 —— LogPage 的居中 Box，
- * 以及 FunctionPage 里自带 LazyColumn 的 ScopeScreen（不能再套 ExpressiveList）。
- * 列表页的 [ExpressiveList] 另经 [LocalMiuixPageScaffold] 取到同一份内边距，
- * 自行抵消外层已施加的顶部偏移，从而复刻 KernelSU「列表铺到顶栏之下」的滚动观感。
- * 顶栏不再接 MiuixScrollBehavior，标题与返回键同行、左对齐固定显示、不随上滑折叠（MiuixCompactTopBar 单行样式）。
- *
- * 硬约束：popupHost 保持空槽位（全应用唯一 Miuix popup host 由根部 Miuix Scaffold 的默认槽位提供，
- * MainShell.kt:187-191）；采样层录制盒只包内容、绝不含绘制该图层的顶栏（MainShell.kt:160-163）。
+ * Miuix 原生大标题与默认滚动行为。内容通过同一条嵌套滚动连接驱动折叠，
+ * Scaffold 的实际顶栏高度继续由调用点作为内容内边距消费。
+ * 弹层仍使用全应用唯一的根部 popup host。
  */
 @Composable
 private fun MiuixPageScaffold(
     title: String,
+    topAppBarState: MiuixTopAppBarState,
+    topAppBarModifier: Modifier,
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
@@ -183,46 +199,36 @@ private fun MiuixPageScaffold(
     bottomBar: @Composable () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
-    val backdrop = rememberMiuixBlurBackdrop(LocalEnableBlur.current)
-    val barColor = if (backdrop != null) Color.Transparent else MiuixTheme.colorScheme.surface
+    val scrollBehavior = MiuixScrollBehavior(state = topAppBarState)
     Scaffold(
         modifier = modifier,
         topBar = {
-            MiuixBlurredBar(backdrop) {
-                MiuixCompactTopBar(
-                    title = title,
-                    color = barColor,
-                    navigationIcon = {
-                        if (onBack != null) MiuixTopBarBackButton(onClick = onBack)
-                    },
-                    actions = actions,
-                )
-            }
+            MiuixTopAppBar(
+                modifier = topAppBarModifier,
+                title = title,
+                scrollBehavior = scrollBehavior,
+                navigationIcon = {
+                    if (onBack != null) MiuixTopBarBackButton(onClick = onBack)
+                },
+                actions = actions,
+            )
         },
         floatingActionButton = floatingActionButton,
         bottomBar = bottomBar,
         // 空槽位：弹层冒泡到根部 Miuix Scaffold 的默认 popupHost（各页不得自装 host）
         popupHost = {},
-        // KernelSU 写法为 systemBars.add(displayCutout)；本仓库 Compose 版本没有 WindowInsets.add，
-        // 用同一语义的 union（= miuix basic/Scaffold.kt:90 自己的默认值写法）
+        // 合并系统栏和屏幕开孔的安全边距。
         contentWindowInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout).only(
             WindowInsetsSides.Horizontal
         ),
     ) { innerPadding ->
-        CompositionLocalProvider(
-            LocalMiuixPageScaffold provides remember(innerPadding) {
-                MiuixPageScaffoldValues(innerPadding)
-            },
-        ) {
-            // 模糊采样层录制盒：只录制本页内容；顶栏绘制在该层之内，不能放进盒内（渲染树循环引用）
-            Box(modifier = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier) {
-                content(innerPadding)
-            }
+        Box(Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)) {
+            content(innerPadding)
         }
     }
 }
 
-/** Miuix 线返回按钮（KernelSU AboutMiuix.kt:130-144 同款：RTL 时图标水平镜像）。 */
+/** Miuix 返回按钮，RTL 时图标水平镜像。 */
 @Composable
 private fun MiuixTopBarBackButton(onClick: () -> Unit) {
     val layoutDirection = LocalLayoutDirection.current

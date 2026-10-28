@@ -18,7 +18,9 @@ import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
@@ -132,6 +134,7 @@ data class PrefIndexItem(
  * 组内条目不设内圆角与间距，见 [com.fr.colorostools.ui.theme.DesignTokens]）；
  * [groupable] = false 的条目独占一张卡片（分类标题，以及 [PrefScopeBuilder.custom] 显式声明 standalone 的逃生舱）。
  * [bare] = true 的条目（仅分类标题）完全裸渲染，不套任何卡片容器，对齐旧 PreferenceCategory 观感。
+ * [groupBreak] 只分隔卡片组，保留零高度槽位以维持索引位置。
  */
 internal class PrefEntry(
     val slot: Int,
@@ -142,6 +145,9 @@ internal class PrefEntry(
     val pageTarget: String?,
     val groupable: Boolean,
     val bare: Boolean,
+    val groupBreak: Boolean = false,
+    /** 该行参与列表增删动画（需要 [itemKey] 稳定，默认关闭） */
+    val animate: Boolean = false,
     val render: @Composable (slot: Int) -> Unit,
 ) {
     var segIndex: Int = 0
@@ -288,6 +294,8 @@ class PrefScopeBuilder internal constructor(
         pageTarget: String? = null,
         groupable: Boolean = true,
         bare: Boolean = false,
+        groupBreak: Boolean = false,
+        animate: Boolean = false,
         render: @Composable (slot: Int) -> Unit,
     ) {
         val slot = entries.size
@@ -300,6 +308,8 @@ class PrefScopeBuilder internal constructor(
             pageTarget = pageTarget,
             groupable = groupable,
             bare = bare,
+            groupBreak = groupBreak,
+            animate = animate,
             render = render,
         )
     }
@@ -331,6 +341,14 @@ class PrefScopeBuilder internal constructor(
     }
 
     // ---------------- DSL 项 ----------------
+
+    /** 开始一张无标题分组卡片；沿用列表的组间距，不额外绘制分类标题。 */
+    fun group() = emit(
+        null, null, null, null,
+        groupable = false,
+        bare = true,
+        groupBreak = true,
+    ) { }
 
     /**
      * 分类标题（对应旧 addCategory / categoryPreference）：不套卡片，裸渲染在分组卡片之上。
@@ -535,9 +553,8 @@ class PrefScopeBuilder internal constructor(
                 steps = ((valueRange.last - valueRange.first) / step - 1).coerceAtLeast(0),
                 trackRange = valueRange.first.toFloat()..valueRange.last.toFloat(),
             )
-            var dragging by remember { mutableStateOf(false) }
-            // 外部值变化同步（拖动期间不覆盖用户手势）
-            if (!dragging) {
+            // 外部值变化同步：拖动期间 stored 不变，因此不会覆盖用户手势
+            LaunchedEffect(stored) {
                 sliderState.value = stored.coerceIn(valueRange.first, valueRange.last).toFloat()
             }
             val current = sliderState.value.roundToInt()
@@ -570,12 +587,8 @@ class PrefScopeBuilder internal constructor(
                         }
                         Slider(
                             state = sliderState,
-                            onValueChange = {
-                                dragging = true
-                                sliderState.value = it
-                            },
+                            onValueChange = { sliderState.value = it },
                             onValueChangeFinished = {
-                                dragging = false
                                 val min = valueRange.first
                                 val stepped = (((sliderState.value - min) / step).roundToInt() * step + min)
                                     .coerceIn(valueRange.first, valueRange.last)
@@ -603,6 +616,7 @@ class PrefScopeBuilder internal constructor(
         keyboardType: KeyboardType = KeyboardType.Text,
         enabled: Boolean = true,
         notify: Boolean = false,
+        maxLines: Int = 1,
         onChange: ((String) -> Unit)? = null,
     ) = emit(key, key, title, summary) { slot ->
         val current by state.stringFlow(key, default).collectAsStateWithLifecycle()
@@ -634,6 +648,7 @@ class PrefScopeBuilder internal constructor(
                 summary = dialogMessage,
                 placeholder = hint,
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                maxLines = maxLines,
             )
         } else {
             Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
@@ -651,19 +666,29 @@ class PrefScopeBuilder internal constructor(
                     onDismissRequest = { showDialog = false },
                     title = { Text(title) },
                     text = {
+                        // 长说明放进「可滚动 + 只吃剩余高度」区域，先测量输入框，
+                        // 避免说明把输入框挤出对话框（material 与 miuix 行为保持一致）
                         Column {
-                            dialogMessage?.let {
-                                Text(
-                                    it,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                            dialogMessage?.takeIf { it.isNotEmpty() }?.let {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f, fill = false)
+                                        .fillMaxWidth()
+                                        .verticalScroll(rememberScrollState()),
+                                ) {
+                                    Text(
+                                        it,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
                             }
                             OutlinedTextField(
                                 value = text,
                                 onValueChange = { text = it },
                                 placeholder = hint?.let { { Text(it) } },
-                                singleLine = true,
+                                singleLine = maxLines == 1,
+                                maxLines = maxLines,
                                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                                 modifier = Modifier.fillMaxWidth(),
                             )
@@ -745,7 +770,14 @@ class PrefScopeBuilder internal constructor(
         requiredScopes: Array<String>? = null,
         onLongClick: (() -> Unit)? = null,
         onClick: (() -> Unit)? = null,
-    ) = emit(null, null, title, summary) { slot ->
+        /**
+         * 稳定的列表项 key（默认按槽位编号）：同一业务行在相邻行增删时槽位会漂移，
+         * 需要「删掉的就是这一行」的动画时传业务键。
+         */
+        itemKey: String? = null,
+        /** 该行参与列表增删动画（配合稳定 [itemKey]；默认关闭，其余页面行为不变） */
+        animate: Boolean = false,
+    ) = emit(itemKey, null, title, summary, animate = animate) { slot ->
         // 作用域门禁：点击入口与开关同语义（缺失先弹窗，确定后继续点击动作）
         val activate: (() -> Unit)? = onClick?.let { original ->
             { if (requiredScopes.isNullOrEmpty()) original() else gateScope(requiredScopes, original) }
@@ -871,7 +903,7 @@ fun ScopeScreen(
     }
 
     // 唯一的 LazyColumn item 缝：条目描述（槽位/分段/元数据）只构建一次，主题差异只在这里分派
-    val listItems: LazyListScope.() -> Unit = {
+    val buildEntries: LazyListScope.() -> Unit = {
         // 条目重建必须在 LazyColumn 的 content lambda 内执行（而不是 ScopeScreen 函数体）：
         // 本 lambda 由 LazyList 的 derivedStateOf 包裹，builder.content() 里对页面级状态
         // （systemInfo / rows / entries / filtered 等 mutableStateOf）的读取因此进入快照订阅，
@@ -892,6 +924,13 @@ fun ScopeScreen(
         } else {
             builder.entries.forEach { entry ->
                 item(key = entry.itemKey) {
+                    if (entry.groupBreak) {
+                        // 保留零高度槽位，让搜索索引和滚动定位仍与 entry.slot 一致。
+                        return@item
+                    }
+                    // 逐行增删动画：只挂到 DSL 显式声明 animate 的行，其余页面行为完全不变。
+                    // 淡出/淡入按 key 认身份，所以这类行必须同时传稳定的 itemKey（默认槽位 key 会漂移）。
+                    val animModifier = if (entry.animate) Modifier.animateItem() else Modifier
                     if (entry.bare) {
                         // 分类标题：不套卡片，对齐旧 PreferenceCategory 的观感（标题裸渲染在分组卡片之上）。
                         // 顶部间距沿用原卡片路径的取值，纵向节奏与改动前一致。
@@ -907,7 +946,7 @@ fun ScopeScreen(
                         } else {
                             Modifier
                         }
-                        Box(modifier = Modifier.padding(top = topGap).then(bareModifier)) {
+                        Box(modifier = animModifier.padding(top = topGap).then(bareModifier)) {
                             entry.render(entry.slot)
                         }
                     } else if (LocalUiMode.current == UiMode.Miuix) {
@@ -915,14 +954,14 @@ fun ScopeScreen(
                             index = entry.segIndex,
                             count = entry.segCount,
                             highlighted = builder.highlightSlot.value == entry.slot,
-                            modifier = Modifier.padding(top = miuixTopGap(entry.slot, entry.segIndex)),
+                            modifier = animModifier.padding(top = miuixTopGap(entry.slot, entry.segIndex)),
                         ) {
                             entry.render(entry.slot)
                         }
                     } else {
                         MaterialItem(index = entry.segIndex, count = entry.segCount) {
                             Box(
-                                modifier = Modifier.padding(
+                                modifier = animModifier.padding(
                                     top = when {
                                         entry.slot == 0 -> 0.dp
                                         entry.segIndex == 0 -> 8.dp
@@ -939,6 +978,13 @@ fun ScopeScreen(
             }
         }
     }
+
+    // 条目 lambda 必须记住：页面骨架的大标题折叠会把 innerPadding 每帧换一遍，
+    // ScopeScreen 因此随滚动每帧重组；若列表内容 lambda 也跟着每帧新建，LazyList 的
+    // LazyListIntervalContent 会失效，所有可见条目的内容 lambda 一起换新实例 —— 每帧重组 +
+    // 重测量全部可见行。记住后页面重组只影响 ScopeScreen 自身，列表内容不再跟着重建。
+    // （行内主线程解码见 PrefImageRow.kt 的 previewImage，那才是滑到 OTA 卡片时的停顿来源。）
+    val listItems: LazyListScope.() -> Unit = remember(builder, fullContent) { buildEntries }
 
     val list: @Composable (Modifier) -> Unit = { listModifier ->
         if (LocalUiMode.current == UiMode.Miuix) {

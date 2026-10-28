@@ -31,12 +31,36 @@ object DeviceUtils {
     }
 
     /**
-     * 获取OS OTA版本号
+     * 获取OS OTA版本号（走 root shell；shell 未就绪时返回 "null"）
+     *
+     * 需要「任何时刻都拿到稳定值」时不要直接用本方法，用 [resolveOtaVersion]。
      * @return String
      */
     fun getOtaVersion(): String {
         val command = "getprop ro.build.version.ota"
         return ShellUtils.fastCmd(command).ifBlank { "null" }
+    }
+
+    /**
+     * OTA 版本解析（多级回落，不依赖 root shell 就绪时序）。
+     *
+     * 顺序：ro.build.version.ota → oplus my_manifest 版本 → root shell getprop。
+     * `ro.build.version.ota` 与 my_manifest 是同一份 OTA 标识（复制设备信息里
+     * getOTACOnfigs 第二行取的就是后者），SystemProperties 直读不需要 root。
+     *
+     * **判定「系统更新后是否已优化 Dex」与主页「版本」行必须共用本方法**：
+     * 两处若各自取源，用户点过「忽略本次系统更新」写下的值与下次读到的值就可能不等，
+     * 弹窗会反复出现（2026-10-28 实测 bug）。
+     *
+     * @return 解析不到时返回空串（调用方按「未知」处理）
+     */
+    fun resolveOtaVersion(): String {
+        val candidates = listOf(
+            runCatching { SystemProperties.get("ro.build.version.ota", "") }.getOrNull(),
+            runCatching { getMyManifesstVersion() }.getOrNull(),
+            runCatching { getOtaVersion() }.getOrNull(),
+        )
+        return candidates.firstOrNull { !it.isNullOrBlank() && it != "null" } ?: ""
     }
 
     /**

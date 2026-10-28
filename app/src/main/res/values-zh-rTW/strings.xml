@@ -1168,6 +1168,7 @@
     <string name="add">添加</string>
     <string name="remove">移除</string>
     <string name="ignore">忽略</string>
+    <string name="ignore_this_system_update">忽略本次系統更新</string>
     <string name="default_">默认</string>
     <string name="normal">普通</string>
     <string name="all">全部</string>
@@ -1268,4 +1269,6 @@
     <string name="status_bar_slot_airplane">飛航模式</string>
     <string name="status_bar_slot_oplus_satellite">衛星圖示</string>
     <string name="status_bar_slot_battery">電池</string>
+    <!-- 熄屏挂机（磁贴名） -->
+    <string name="fake_screen_tile_label">熄屏掛機</string>
 </resources>

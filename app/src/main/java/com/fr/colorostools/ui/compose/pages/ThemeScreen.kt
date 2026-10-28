@@ -43,7 +43,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.MenuOpen
 import androidx.compose.material.icons.filled.Brightness1
 import androidx.compose.material.icons.filled.Brightness3
 import androidx.compose.material.icons.filled.Brightness4
@@ -56,12 +56,16 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Colorize
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.DesignServices
+import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Style
+import androidx.compose.material.icons.rounded.Swipe
+import androidx.compose.material.icons.rounded.ViewCarousel
 import androidx.compose.material.icons.rounded.Wallpaper
-import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -80,6 +84,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -101,10 +106,9 @@ import com.fr.colorostools.ui.compose.components.material.MaterialSwitchItem
 import com.fr.colorostools.ui.compose.components.material.MaterialTonalCard
 import com.fr.colorostools.ui.compose.components.material.MaterialTopBarBackButton
 import com.fr.colorostools.ui.compose.components.material.materialTopAppBarColors
-import com.fr.colorostools.ui.compose.components.miuix.MiuixBlurredBar
-import com.fr.colorostools.ui.compose.components.miuix.MiuixCompactTopBar
 import com.fr.colorostools.ui.compose.components.miuix.MiuixScaleDialog
-import com.fr.colorostools.ui.compose.components.miuix.rememberMiuixBlurBackdrop
+import com.fr.colorostools.ui.compose.MainTab
+import com.fr.colorostools.ui.shell.FloatingBottomBarStyle
 import com.fr.colorostools.ui.shell.ModuleLinesMax
 import com.fr.colorostools.ui.shell.ModuleLinesMin
 import com.fr.colorostools.ui.shell.PageScaleMax
@@ -143,23 +147,23 @@ import top.yukonga.miuix.kmp.basic.Slider as MiuixSlider
 import top.yukonga.miuix.kmp.basic.SliderDefaults
 import top.yukonga.miuix.kmp.basic.TabRow as MiuixTabRow
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
-import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
+import top.yukonga.miuix.kmp.basic.TopAppBar as MiuixTopAppBar
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
+import top.yukonga.miuix.kmp.shader.isRenderEffectSupported
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
 /**
- * 主题与配色页分发（对齐 KernelSU `ColorPaletteScreen`）：按当前界面风格选择实现。
+ * 主题与配色页分发：按当前界面风格选择实现。
  *
- * 原「三文件制」已合并为单文件：两线（Material / Miuix）各自保留完整的
- * KernelSU 参考实现，仅共享本分派入口。两线状态与组件集合差异较大
- * （Material 无 Monet 与模糊/悬浮底栏等 Miuix 外观项），故不强行抽共享状态，
- * 只做「同页单文件」合并以消除冗余分发文件。
+ * Material / Miuix 分别管理状态与组件，仅共享分发入口。
+ * Monet、模糊及悬浮底栏设置只在 Miuix 外观下显示。
  */
 @Composable
 fun ThemeScreen(onBack: () -> Unit) {
@@ -170,25 +174,25 @@ fun ThemeScreen(onBack: () -> Unit) {
     }
 }
 
-/** 偏好键：Miuix 主题预览卡片所用的底栏形态（对齐 KernelSU 同名键，ColorOSTools 侧新增） */
+/** 偏好键：Miuix 主题预览卡片所用的底栏形态 */
 private const val KeyEnableBlur = "enable_blur"
 private const val KeyEnableFloatingBottomBar = "enable_floating_bottom_bar"
-private const val KeyEnableFloatingBottomBarBlur = "enable_floating_bottom_bar_blur"
 private const val KeyPaletteStyle = "palette_style"
 private const val KeyColorSpec = "color_spec"
 private const val KeyKeyColor = "key_color"
 private const val KeyDarkTheme = "dark_theme"
 
 /**
- * 主题与配色页（迁移 KernelSU `ui/screen/colorpalette`，Material 实现）。
+ * 主题与配色页的 Material 实现。
  *
- * 组成对齐 KernelSU ColorPaletteScreenMaterial：
+ * 页面组成：
  * 主题预览卡片 → 主题色选择（跟随系统 + 15 预设）→ 主题模式分段按钮
- * → 调色风格 / 色彩规格下拉 → 动态取色开关 → 预测式返回开关。
+ * → 调色风格 / 色彩规格下拉 → 动态取色开关 → 返回与切页手势。
  *
- * 偏好键沿用 ColorOSTools 既有约定（SettingsPrefs）：
+ * 偏好键沿用 FKColorOS 既有约定（SettingsPrefs）：
  * dark_theme（0 跟随系统 / 1 深色 / 2 浅色 / 3 深色 AMOLED）、key_color、
- * palette_style、color_spec、use_dynamic_color、enable_predictive_back。
+ * palette_style、color_spec、use_dynamic_color、enable_predictive_back、
+ * enable_swipe_dismiss、pager_interception_mode。
  * 写入后通过 [ThemePrefs.notifyChanged] 让应用主题即时重算，无需 recreate。
  */
 @Composable
@@ -239,7 +243,14 @@ private fun ThemeScreenMaterial(onBack: () -> Unit) {
         )
     }
 
-    // KernelSU 主题页中与配色无关的外壳行为项（键名与默认值对齐 KernelSU）
+    var enableBlur by remember {
+        mutableStateOf(context.getBoolean(SettingsPrefs, KeyEnableBlur, false))
+    }
+    var enableFloatingBottomBar by remember {
+        mutableStateOf(context.getBoolean(SettingsPrefs, KeyEnableFloatingBottomBar, false))
+    }
+
+    // 主题页中与配色无关的外壳行为设置。
     var navigationBadge by remember {
         mutableStateOf(
             context.getBoolean(
@@ -258,6 +269,9 @@ private fun ThemeScreenMaterial(onBack: () -> Unit) {
             )
         )
     }
+    var pagerMode by remember {
+        mutableIntStateOf(ShellSettingsController.get(context).pagerInterceptionMode)
+    }
     // 预测式返回手势（需 Android 14+，反射 ApplicationInfo.setEnableOnBackInvokedCallback）
     var predictiveBack by remember {
         mutableStateOf(context.getBoolean(SettingsPrefs, ShellSettingsController.KEY_PREDICTIVE_BACK, true))
@@ -274,6 +288,15 @@ private fun ThemeScreenMaterial(onBack: () -> Unit) {
                 .coerceIn(ModuleLinesMin, ModuleLinesMax)
         )
     }
+    var categoryBadgeColors by remember {
+        mutableStateOf(
+            context.getBoolean(
+                SettingsPrefs,
+                ShellSettingsController.KEY_CATEGORY_BADGE_COLORS,
+                true
+            )
+        )
+    }
     var uiMode by remember { mutableStateOf(ThemeController.getUiMode(context)) }
 
     val appSettings = AppSettings(
@@ -284,12 +307,14 @@ private fun ThemeScreenMaterial(onBack: () -> Unit) {
         dynamicColor = dynamicColor,
     )
 
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     MaterialScaffold(
         topBar = {
-            TopAppBar(
+            LargeFlexibleTopAppBar(
                 navigationIcon = { MaterialTopBarBackButton(onClick = onBack) },
-                title = { Text(stringResource(R.string.theme_title)) },
+                title = { Text(stringResource(R.string.settings_theme)) },
                 colors = materialTopAppBarColors(),
+                scrollBehavior = scrollBehavior,
                 windowInsets = WindowInsets.safeDrawing.only(
                     WindowInsetsSides.Top + WindowInsetsSides.Horizontal
                 ),
@@ -307,7 +332,8 @@ private fun ThemeScreenMaterial(onBack: () -> Unit) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
+                .padding(paddingValues)
+                .nestedScroll(scrollBehavior.nestedScrollConnection),
             verticalArrangement = Arrangement.spacedBy(13.dp),
         ) {
             item {
@@ -492,15 +518,60 @@ private fun ThemeScreenMaterial(onBack: () -> Unit) {
                 }
             }
 
-            // 预测式返回手势（需 Android 14+，反射 ApplicationInfo.setEnableOnBackInvokedCallback）
-            if (PredictiveBackUtils.isSupported()) {
-                item {
-                    MaterialGroup(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        content = listOf(
-                            {
+            // 分类页图标配色 + 应用内手势；系统不支持预测性返回时，另外两项仍可配置。
+            item {
+                MaterialGroup(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    content = buildList<@Composable () -> Unit> {
+                        if (isRenderEffectSupported()) {
+                            add {
                                 MaterialSwitchItem(
-                                    icon = Icons.AutoMirrored.Rounded.ArrowBack,
+                                    icon = Icons.Rounded.BlurOn,
+                                    title = stringResource(R.string.settings_enable_blur),
+                                    summary = stringResource(R.string.settings_enable_blur_summary),
+                                    checked = enableBlur,
+                                    onCheckedChange = {
+                                        enableBlur = it
+                                        context.putBoolean(SettingsPrefs, KeyEnableBlur, it)
+                                        ThemePrefs.notifyChanged()
+                                    },
+                                )
+                            }
+                        }
+                        add {
+                            MaterialSwitchItem(
+                                icon = Icons.Rounded.CallToAction,
+                                title = stringResource(R.string.settings_floating_bottom_bar),
+                                summary = stringResource(R.string.settings_floating_bottom_bar_summary),
+                                checked = enableFloatingBottomBar,
+                                onCheckedChange = {
+                                    enableFloatingBottomBar = it
+                                    context.putBoolean(SettingsPrefs, KeyEnableFloatingBottomBar, it)
+                                    ThemePrefs.notifyChanged()
+                                },
+                            )
+                        }
+                        add {
+                            MaterialSwitchItem(
+                                icon = Icons.Rounded.Palette,
+                                title = stringResource(R.string.settings_category_badge_colors),
+                                summary = stringResource(R.string.settings_category_badge_colors_summary),
+                                checked = categoryBadgeColors,
+                                onCheckedChange = {
+                                    categoryBadgeColors = it
+                                    context.putBoolean(
+                                        SettingsPrefs,
+                                        ShellSettingsController.KEY_CATEGORY_BADGE_COLORS,
+                                        it
+                                    )
+                                    ThemePrefs.notifyChanged()
+                                },
+                            )
+                        }
+                        if (PredictiveBackUtils.isSupported()) {
+                            add {
+                                MaterialSwitchItem(
+                                    icon = Icons.AutoMirrored.Rounded.MenuOpen,
                                     title = stringResource(R.string.settings_enable_predictive_back),
                                     summary = stringResource(R.string.settings_enable_predictive_back_summary),
                                     checked = predictiveBack,
@@ -515,10 +586,40 @@ private fun ThemeScreenMaterial(onBack: () -> Unit) {
                                         PredictiveBackUtils.applyImmediately(context, it)
                                     },
                                 )
-                            },
-                        ),
-                    )
-                }
+                            }
+                        }
+                        add {
+                            MaterialSwitchItem(
+                                icon = Icons.Rounded.Swipe,
+                                title = stringResource(R.string.settings_enable_swipe_dismiss),
+                                summary = stringResource(R.string.settings_enable_swipe_dismiss_summary),
+                                checked = swipeDismiss,
+                                onCheckedChange = {
+                                    swipeDismiss = it
+                                    context.putBoolean(SettingsPrefs, ShellSettingsController.KEY_SWIPE_DISMISS, it)
+                                    ThemePrefs.notifyChanged()
+                                },
+                            )
+                        }
+                        add {
+                            MaterialDropdownItem(
+                                icon = Icons.Rounded.ViewCarousel,
+                                title = stringResource(R.string.settings_pager_gesture_mode),
+                                items = listOf(
+                                    stringResource(R.string.settings_pager_gesture_native),
+                                    stringResource(R.string.settings_pager_gesture_cross_axis),
+                                    stringResource(R.string.settings_pager_gesture_ios_like),
+                                ),
+                                selectedIndex = pagerMode,
+                                onItemSelected = {
+                                    pagerMode = it
+                                    context.putInt(SettingsPrefs, ShellSettingsController.KEY_PAGER_MODE, it)
+                                    ThemePrefs.notifyChanged()
+                                },
+                            )
+                        }
+                    },
+                )
             }
 
             // 界面缩放（page_scale）：拖动只更新页内状态，松手才提交偏好，避免重建全应用密度
@@ -532,6 +633,12 @@ private fun ThemeScreenMaterial(onBack: () -> Unit) {
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
+                        // material3 的 SliderState 是非受控语义：值必须由调用方写回 state，
+                        // 否则滑块位置永远停在初始值（拖动无视觉反馈）
+                        val sliderState = rememberSliderState(
+                            value = pageScale,
+                            trackRange = PageScaleMin..PageScaleMax,
+                        )
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Rounded.AspectRatio,
@@ -552,17 +659,17 @@ private fun ThemeScreenMaterial(onBack: () -> Unit) {
                                 )
                             }
                             Text(
-                                text = "${(pageScale * 100).roundToInt()}%",
+                                text = "${(sliderState.value * 100).roundToInt()}%",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         Slider(
-                            state = rememberSliderState(
-                                value = pageScale,
-                                trackRange = PageScaleMin..PageScaleMax
-                            ),
-                            onValueChange = { pageScale = it },
+                            state = sliderState,
+                            onValueChange = {
+                                pageScale = it
+                                sliderState.value = it
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             onValueChangeFinished = {
                                 context.putFloat(
@@ -587,6 +694,12 @@ private fun ThemeScreenMaterial(onBack: () -> Unit) {
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
+                        // 同 page_scale：SliderState 需要调用方写回
+                        val sliderState = rememberSliderState(
+                            value = moduleLines.toFloat(),
+                            steps = 3,
+                            trackRange = ModuleLinesMin.toFloat()..ModuleLinesMax.toFloat(),
+                        )
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Rounded.Description,
@@ -613,12 +726,11 @@ private fun ThemeScreenMaterial(onBack: () -> Unit) {
                             )
                         }
                         Slider(
-                            state = rememberSliderState(
-                                value = moduleLines.toFloat(),
-                                steps = 3,
-                                trackRange = ModuleLinesMin.toFloat()..ModuleLinesMax.toFloat()
-                            ),
-                            onValueChange = { moduleLines = it.roundToInt() },
+                            state = sliderState,
+                            onValueChange = {
+                                moduleLines = it.roundToInt()
+                                sliderState.value = it
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             onValueChangeFinished = {
                                 context.putInt(
@@ -643,7 +755,7 @@ private fun ThemeScreenMaterial(onBack: () -> Unit) {
     }
 }
 
-/** 主题预览卡片：以当前选择实时渲染一块迷你界面（对齐 KernelSU ThemePreviewCard） */
+/** 主题预览卡片：以当前选择实时渲染一块迷你界面 */
 @SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
 private fun ThemePreviewCard(
@@ -844,22 +956,19 @@ private fun ColorButtonMaterial(
 }
 
 /**
- * 主题与配色页（迁移 KernelSU `ui/screen/colorpalette/ColorPaletteScreenMiuix`，Miuix 实现）。
+ * 主题与配色页的 Miuix 实现。
  *
- * 组成对齐 KernelSU ColorPaletteScreenMiuix：
+ * 页面组成：
  * 主题预览卡片 → 主题模式 TabRow（跟随系统 / 浅色 / 深色）→ Monet 取色卡片（含强调色 /
- * 色彩风格 / 色彩标准）→ Miuix 外观卡片（模糊 / 悬浮底栏 / 液态玻璃 / 导航角标）
- * → 外壳行为卡片（预测式返回 + 界面缩放，含输入对话框）→ 模块描述最大行数 → 底部留白。
+ * 色彩风格 / 色彩标准）→ Miuix 外观卡片（模糊 / 悬浮底栏 / 悬浮样式）
+ * → 外壳行为卡片（返回 / 切页手势 + 界面缩放，含输入对话框）→ 模块描述最大行数 → 底部留白。
  *
- * 与 KernelSU 的差异：
- * 1. 不做 UiState / Actions 抽象，直接读写 SettingsPrefs；
- * 2. 不提供「翻页手势」下拉（本应用已隐藏，无对应功能）；「预测式返回」开关已提供（targetSdk 37）；
- * 3. 不调用 MonetColorsProvider.UpdateCss()（本应用无该实现）。
+ * 设置直接读写 SettingsPrefs，并通过主题通知同步到五个一级页面。
  *
- * 偏好键沿用 ColorOSTools 既有约定（SettingsPrefs）：
+ * 偏好键沿用 FKColorOS 既有约定（SettingsPrefs）：
  * dark_theme（0-3 普通 / 4-7 Monet）、miuix_monet、key_color、palette_style、color_spec、
- * enable_blur、enable_floating_bottom_bar、enable_floating_bottom_bar_blur、
- * enable_navigation_badge、enable_predictive_back、enable_swipe_dismiss、page_scale、
+ * enable_blur、enable_floating_bottom_bar、floating_bottom_bar_style、
+ * enable_navigation_badge、enable_predictive_back、enable_swipe_dismiss、pager_interception_mode、page_scale、
  * module_description_max_lines。
  * 写入后通过 [ThemePrefs.notifyChanged] 让应用主题即时重算，无需 recreate。
  */
@@ -922,11 +1031,16 @@ private fun ThemeScreenMiuix(onBack: () -> Unit) {
     var enableFloatingBottomBar by remember {
         mutableStateOf(context.getBoolean(SettingsPrefs, KeyEnableFloatingBottomBar, false))
     }
-    var enableFloatingBottomBarBlur by remember {
-        mutableStateOf(context.getBoolean(SettingsPrefs, KeyEnableFloatingBottomBarBlur, false))
+    var floatingBottomBarStyle by remember {
+        mutableStateOf(ShellSettingsController.get(context).floatingBottomBarStyle)
+    }
+    var categoryBadgeColors by remember {
+        mutableStateOf(ShellSettingsController.get(context).categoryBadgeColors)
     }
 
     // 外壳行为项
+    var swipeDismiss by remember { mutableStateOf(ShellSettingsController.get(context).swipeDismiss) }
+    var pagerMode by remember { mutableIntStateOf(ShellSettingsController.get(context).pagerInterceptionMode) }
     var pageScale by remember {
         mutableFloatStateOf(
             context.getFloat(SettingsPrefs, ShellSettingsController.KEY_PAGE_SCALE, 1.0f)
@@ -956,7 +1070,7 @@ private fun ThemeScreenMiuix(onBack: () -> Unit) {
     val setMiuixMonet: (Boolean) -> Unit = { enabled ->
         miuixMonet = enabled
         context.putBoolean(SettingsPrefs, ThemeController.KEY_MIUIX_MONET, enabled)
-        // 与 KernelSU 一致：开关 Monet 时同步归一化主题模式（Monet_* 与普通模式互转）
+        // 开关 Monet 时同步归一化主题模式（Monet_* 与普通模式互转）
         val normalized = if (enabled) colorMode.toMonetMode() else colorMode.toNonMonetMode()
         if (normalized != colorMode) {
             setColorMode(normalized)
@@ -989,9 +1103,14 @@ private fun ThemeScreenMiuix(onBack: () -> Unit) {
         context.putBoolean(SettingsPrefs, KeyEnableFloatingBottomBar, enabled)
         ThemePrefs.notifyChanged()
     }
-    val setEnableFloatingBottomBarBlur: (Boolean) -> Unit = { enabled ->
-        enableFloatingBottomBarBlur = enabled
-        context.putBoolean(SettingsPrefs, KeyEnableFloatingBottomBarBlur, enabled)
+    val setCategoryBadgeColors: (Boolean) -> Unit = { enabled ->
+        categoryBadgeColors = enabled
+        context.putBoolean(SettingsPrefs, ShellSettingsController.KEY_CATEGORY_BADGE_COLORS, enabled)
+        ThemePrefs.notifyChanged()
+    }
+    val setFloatingBottomBarStyle: (Int) -> Unit = { index ->
+        floatingBottomBarStyle = FloatingBottomBarStyle.entries[index]
+        context.putString(SettingsPrefs, ShellSettingsController.KEY_FLOATING_BOTTOM_BAR_STYLE, floatingBottomBarStyle.value)
         ThemePrefs.notifyChanged()
     }
     val setPageScale: (Float) -> Unit = { scale ->
@@ -1012,46 +1131,50 @@ private fun ThemeScreenMiuix(onBack: () -> Unit) {
         // 即时生效：反射改写 ApplicationInfo 后重建 Activity（新窗口读取新 flag）
         PredictiveBackUtils.applyImmediately(context, enabled)
     }
+    val setSwipeDismiss: (Boolean) -> Unit = { enabled ->
+        swipeDismiss = enabled
+        context.putBoolean(SettingsPrefs, ShellSettingsController.KEY_SWIPE_DISMISS, enabled)
+        ThemePrefs.notifyChanged()
+    }
+    val setPagerMode: (Int) -> Unit = { mode ->
+        pagerMode = mode
+        context.putInt(SettingsPrefs, ShellSettingsController.KEY_PAGER_MODE, mode)
+        ThemePrefs.notifyChanged()
+    }
 
-    // 模糊开关仅对预览与顶栏生效，与 KernelSU 一样由偏好直接驱动
-    val backdrop = rememberMiuixBlurBackdrop(enableBlur)
-    val blurActive = backdrop != null
-    val barColor = if (blurActive) Color.Transparent else colorScheme.surface
+    val scrollBehavior = MiuixScrollBehavior()
     val isDark = colorMode.resolveDarkTheme()
 
     MiuixScaffold(
         topBar = {
-            MiuixBlurredBar(backdrop) {
-                MiuixCompactTopBar(
-                    color = barColor,
-                    title = stringResource(R.string.settings_theme),
-                    navigationIcon = {
-                        MiuixIconButton(onClick = onBack) {
-                            val layoutDirection = LocalLayoutDirection.current
-                            MiuixIcon(
-                                modifier = Modifier.graphicsLayer {
-                                    if (layoutDirection == LayoutDirection.Rtl) scaleX = -1f
-                                },
-                                imageVector = MiuixIcons.Back,
-                                contentDescription = null,
-                                tint = colorScheme.onBackground
-                            )
-                        }
-                    },
-                )
-            }
+            MiuixTopAppBar(
+                scrollBehavior = scrollBehavior,
+                title = stringResource(R.string.settings_theme),
+                navigationIcon = {
+                    MiuixIconButton(onClick = onBack) {
+                        val layoutDirection = LocalLayoutDirection.current
+                        MiuixIcon(
+                            modifier = Modifier.graphicsLayer {
+                                if (layoutDirection == LayoutDirection.Rtl) scaleX = -1f
+                            },
+                            imageVector = MiuixIcons.Back,
+                            contentDescription = null,
+                            tint = colorScheme.onBackground
+                        )
+                    }
+                },
+            )
         },
         // 空槽位：OverlayDropdownPreference / OverlayDialog 默认 renderInRootScaffold = true，
         // 弹层冒泡到根部 Miuix Scaffold 的默认 popupHost（各页不得自装 host），本页仅声明不自装。
         popupHost = { },
-        // KernelSU 写法为 systemBars.add(displayCutout)；本仓库 Compose 版本没有 WindowInsets.add，
-        // 合并 insets 只能用 union（库内 basic/Scaffold.kt:90 同样写法）。
+        // 合并系统栏和屏幕开孔的安全边距。
         contentWindowInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout)
             .only(WindowInsetsSides.Horizontal)
     ) { innerPadding ->
         val showScaleDialog = rememberSaveable { mutableStateOf(false) }
 
-        Box(modifier = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier) {
+        Box(Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxHeight()
@@ -1068,7 +1191,8 @@ private fun ThemeScreenMiuix(onBack: () -> Unit) {
                         isDark = isDark,
                         miuixMonet = miuixMonet,
                         enableFloatingBottomBar = enableFloatingBottomBar,
-                        enableFloatingBottomBarBlur = enableFloatingBottomBarBlur,
+                        floatingBottomBarStyle = floatingBottomBarStyle,
+                        enableBlur = enableBlur,
                         paletteStyle = paletteStyle,
                         colorSpec = colorSpec,
                     )
@@ -1194,13 +1318,28 @@ private fun ThemeScreenMiuix(onBack: () -> Unit) {
                         }
                     }
 
-                    // Miuix 外观：模糊 / 悬浮底栏 / 液态玻璃 / 导航角标
+                    // 悬浮底栏的两种样式共用模糊开关。
                     MiuixCard(
                         modifier = Modifier
                             .padding(top = 12.dp)
                             .fillMaxWidth(),
                     ) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        SwitchPreference(
+                            title = stringResource(R.string.settings_category_badge_colors),
+                            summary = stringResource(R.string.settings_category_badge_colors_summary),
+                            startAction = {
+                                MiuixIcon(
+                                    Icons.Rounded.Palette,
+                                    modifier = Modifier.padding(end = 6.dp),
+                                    contentDescription = stringResource(R.string.settings_category_badge_colors),
+                                    tint = colorScheme.onBackground
+                                )
+                            },
+                            checked = categoryBadgeColors,
+                            onCheckedChange = setCategoryBadgeColors
+                        )
+
+                        if (isRenderEffectSupported()) {
                             SwitchPreference(
                                 title = stringResource(id = R.string.settings_enable_blur),
                                 summary = stringResource(id = R.string.settings_enable_blur_summary),
@@ -1232,27 +1371,28 @@ private fun ThemeScreenMiuix(onBack: () -> Unit) {
                             onCheckedChange = { setEnableFloatingBottomBar(it) }
                         )
 
-                        AnimatedVisibility(
-                            visible = enableFloatingBottomBar && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-                        ) {
-                            SwitchPreference(
-                                title = stringResource(id = R.string.settings_enable_glass),
-                                summary = stringResource(id = R.string.settings_enable_glass_summary),
+                        AnimatedVisibility(visible = enableFloatingBottomBar) {
+                            OverlayDropdownPreference(
+                                title = stringResource(R.string.settings_floating_bottom_bar_style),
+                                items = listOf(
+                                    stringResource(R.string.settings_floating_style_miuix),
+                                    stringResource(R.string.settings_floating_style_ios),
+                                ),
                                 startAction = {
                                     MiuixIcon(
-                                        Icons.Rounded.WaterDrop,
+                                        Icons.Rounded.ViewCarousel,
                                         modifier = Modifier.padding(end = 6.dp),
-                                        contentDescription = stringResource(id = R.string.settings_enable_glass),
-                                        tint = colorScheme.onBackground
+                                        contentDescription = null,
+                                        tint = colorScheme.onBackground,
                                     )
                                 },
-                                checked = enableFloatingBottomBarBlur,
-                                onCheckedChange = { setEnableFloatingBottomBarBlur(it) }
+                                selectedIndex = floatingBottomBarStyle.ordinal,
+                                onSelectedIndexChange = setFloatingBottomBarStyle,
                             )
                         }
                     }
 
-                    // 外壳行为：预测式返回 + 界面缩放
+                    // 外壳行为：返回 / 切页手势 + 界面缩放
                     MiuixCard(
                         modifier = Modifier
                             .padding(top = 12.dp)
@@ -1264,7 +1404,7 @@ private fun ThemeScreenMiuix(onBack: () -> Unit) {
                                 summary = stringResource(id = R.string.settings_enable_predictive_back_summary),
                                 startAction = {
                                     MiuixIcon(
-                                        MiuixIcons.Back,
+                                        Icons.AutoMirrored.Rounded.MenuOpen,
                                         modifier = Modifier.padding(end = 6.dp),
                                         contentDescription = stringResource(id = R.string.settings_enable_predictive_back),
                                         tint = colorScheme.onBackground
@@ -1274,6 +1414,39 @@ private fun ThemeScreenMiuix(onBack: () -> Unit) {
                                 onCheckedChange = { setPredictiveBack(it) }
                             )
                         }
+
+                        SwitchPreference(
+                            title = stringResource(R.string.settings_enable_swipe_dismiss),
+                            summary = stringResource(R.string.settings_enable_swipe_dismiss_summary),
+                            startAction = {
+                                MiuixIcon(
+                                    Icons.Rounded.Swipe,
+                                    modifier = Modifier.padding(end = 6.dp),
+                                    contentDescription = null,
+                                    tint = colorScheme.onBackground,
+                                )
+                            },
+                            checked = swipeDismiss,
+                            onCheckedChange = setSwipeDismiss,
+                        )
+                        OverlayDropdownPreference(
+                            title = stringResource(R.string.settings_pager_gesture_mode),
+                            items = listOf(
+                                stringResource(R.string.settings_pager_gesture_native),
+                                stringResource(R.string.settings_pager_gesture_cross_axis),
+                                stringResource(R.string.settings_pager_gesture_ios_like),
+                            ),
+                            startAction = {
+                                MiuixIcon(
+                                    Icons.Rounded.ViewCarousel,
+                                    modifier = Modifier.padding(end = 6.dp),
+                                    contentDescription = null,
+                                    tint = colorScheme.onBackground,
+                                )
+                            },
+                            selectedIndex = pagerMode,
+                            onSelectedIndexChange = setPagerMode,
+                        )
 
                         // 拖动只更新页内状态，松手才提交偏好，避免重建全应用密度
                         var sliderValue by remember(pageScale) { mutableFloatStateOf(pageScale) }
@@ -1383,7 +1556,7 @@ private fun ColorMode.withTabIndex(index: Int): ColorMode = when (index) {
     else -> ColorMode.SYSTEM
 }
 
-/** 主题预览卡片：以当前选择实时渲染一块迷你界面（对齐 KernelSU ThemePreviewCardMiuix） */
+/** 主题预览卡片：以当前选择实时渲染一块迷你界面 */
 @SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
 private fun ThemePreviewCardMiuix(
@@ -1391,7 +1564,8 @@ private fun ThemePreviewCardMiuix(
     isDark: Boolean,
     miuixMonet: Boolean,
     enableFloatingBottomBar: Boolean = false,
-    enableFloatingBottomBarBlur: Boolean = false,
+    floatingBottomBarStyle: FloatingBottomBarStyle = FloatingBottomBarStyle.Miuix,
+    enableBlur: Boolean = false,
     paletteStyle: PaletteStyle = PaletteStyle.TonalSpot,
     colorSpec: ColorSpec.SpecVersion = ColorSpec.SpecVersion.SPEC_2025,
 ) {
@@ -1545,21 +1719,33 @@ private fun ThemePreviewCardMiuix(
                             .height(28.dp)
                             .clip(RoundedCornerShape(14.dp))
                             .background(
-                                if (enableFloatingBottomBarBlur) navBarColor.copy(alpha = 0.5f)
+                                if (enableBlur) navBarColor.copy(alpha = 0.5f)
                                 else navBarColor
                             )
                             .border(0.5.dp, textColor.copy(alpha = 0.1f), RoundedCornerShape(14.dp))
                             .padding(horizontal = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        repeat(4) {
+                        MainTab.entries.forEach { tab ->
+                            val selected = tab == MainTab.Home
+                            val ios = floatingBottomBarStyle == FloatingBottomBarStyle.IosLike
                             Box(
                                 modifier = Modifier
-                                    .size(13.dp)
-                                    .clip(RoundedCornerShape(2.dp))
-                                    .background(if (it == 0) iconColor else textColor)
-                            )
+                                    .size(20.dp)
+                                    .background(
+                                        if (selected && ios) iconColor.copy(alpha = 0.15f) else Color.Transparent,
+                                        CircleShape,
+                                    ),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                MiuixIcon(
+                                    imageVector = tab.icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(13.dp),
+                                    tint = if (selected && ios) iconColor else textColor.copy(alpha = if (selected) 1f else 0.6f),
+                                )
+                            }
                         }
                     }
                 }
@@ -1600,20 +1786,19 @@ private fun ThemePreviewCardMiuix(
 }
 
 /**
- * 是否使用导航栏（宽屏分栏）布局（对齐 KernelSU `ui/component/bottombar/BottomBar.kt` + `ui/util/WindowSize.kt`）。
+ * 是否使用导航栏（宽屏分栏）布局。
  *
  * 宽屏时启用；但 Miuix 外观下开启了悬浮底栏则不启用（悬浮底栏与分栏导航互斥）。
- * ColorOSTools 目前只提供 Miuix / Material 两种外观，故此处按「Miuix 外观」判断。
+ * FKColorOS 目前只提供 Miuix / Material 两种外观，故此处按「Miuix 外观」判断。
  */
 @Composable
 private fun useNavigationRail(enableFloatingBottomBar: Boolean): Boolean =
     shouldShowSplitPane() && !enableFloatingBottomBar
 
-/** 窗口是否达到分栏阈值（对齐 KernelSU `shouldShowSplitPane`） */
+/** 窗口是否达到分栏阈值 */
 @Composable
 private fun shouldShowSplitPane(): Boolean {
-    // 只使用稳定 API：LocalConfiguration 的 screenWidthDp / screenHeightDp（KernelSU 用的是窗口容器尺寸，
-    // 这里用屏幕配置近似，避免依赖 LocalWindowInfo 的 @ExperimentalComposeUiApi）
+    // 使用屏幕配置估算窗口尺寸，判断是否采用分栏布局。
     val configuration = LocalConfiguration.current
     val widthDp = configuration.screenWidthDp.toFloat()
     val heightDp = configuration.screenHeightDp.toFloat()

@@ -76,6 +76,19 @@
         </activity-alias>
         
         
+        <!--熄屏挂机磁贴：BIND_QUICK_SETTINGS_TILE 权限下，控制中心「编辑」页才会把它列为可添加项，
+            同时「其他 → 模块内置磁贴列表」也靠这个权限过滤枚举出来-->
+        <service
+                android:name=".tile.FakeScreenTileService"
+                android:exported="true"
+                android:icon="@drawable/ic_tile_fake_screen_off"
+                android:label="@string/fake_screen_tile_label"
+                android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
         <activity
                 android:name=".ui.activity.CropImageActivity"
                 android:theme="@style/Theme.ColorOSTools.NoActionBar" />

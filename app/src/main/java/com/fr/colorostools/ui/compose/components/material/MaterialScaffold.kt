@@ -14,7 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 
 /**
- * Expressive 脚手架（迁移自 KernelSU `ui/component/material/MaterialScaffold.kt`）：
+ * Expressive 脚手架：
  * 默认使用 surfaceContainer 作容器色。
  */
 @Composable

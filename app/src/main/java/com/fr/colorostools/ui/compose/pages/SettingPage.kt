@@ -19,21 +19,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Feedback
-import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.filled.HideImage
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material.icons.filled.Style
-import androidx.compose.material.icons.filled.SystemUpdate
-import androidx.compose.material.icons.filled.Translate
-import androidx.compose.material.icons.filled.VolunteerActivism
-import androidx.compose.material.icons.filled.Widgets
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.DisplaySettings
+import androidx.compose.material.icons.rounded.Fingerprint
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Restore
+import androidx.compose.material.icons.rounded.SaveAlt
+import androidx.compose.material.icons.rounded.SystemUpdate
+import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material.icons.rounded.Widgets
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -43,7 +42,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
@@ -52,7 +51,7 @@ import com.fr.colorostools.R
 import com.fr.colorostools.ui.activity.MainActivity
 import com.fr.colorostools.ui.compose.components.LocalScopeTopInset
 import com.fr.colorostools.ui.compose.components.ScopeScreen
-import com.fr.colorostools.ui.compose.components.PrefIconBadge
+import com.fr.colorostools.ui.compose.components.PrefIcon
 import com.fr.colorostools.ui.compose.components.material.MaterialPageScaffold
 import com.fr.colorostools.ui.theme.LocalUiMode
 import com.fr.colorostools.ui.theme.ThemeController
@@ -60,7 +59,6 @@ import com.fr.colorostools.ui.theme.ThemePrefs
 import com.fr.colorostools.ui.theme.UiMode
 import com.fr.colorostools.utils.AppUtils
 import com.fr.colorostools.utils.BiometricUtils
-import com.fr.colorostools.utils.DonateUtils
 import com.fr.colorostools.utils.FileUtils
 import com.fr.colorostools.utils.IntentPrefs
 import com.fr.colorostools.utils.IntentUtils
@@ -105,7 +103,8 @@ import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
 fun SettingPage(activity: MainActivity, onOpenTheme: () -> Unit = {}) {
     val context = LocalContext.current
     val settings = remember { PrefState.of(context, SettingsPrefs) }
-    val zh = remember(context) { isZh(context) }
+    // 以 Configuration 作 key：语言切换后 isZh 需要重新求值（供后续本地化分支使用）
+    val zh = remember(LocalConfiguration.current) { isZh(context) }
     var pendingRestoreJson by remember { mutableStateOf<JSONObject?>(null) }
 
     // 备份/恢复（旧 registerForActivityResult）
@@ -160,10 +159,10 @@ fun SettingPage(activity: MainActivity, onOpenTheme: () -> Unit = {}) {
                 modifier = scopeModifier,
             ) {
                 // ---------------- 主题 ----------------
-                // 主题模式 / 主题色 / 调色风格 / 色彩规格 / 动态取色 全部迁至独立主题页（对齐 KernelSU colorpalette）
-                category(context.getString(R.string.theme_title))
+                // 主题模式 / 主题色 / 调色风格 / 色彩规格 / 动态取色 全部迁至独立主题页
+                group()
                 // 界面风格切换（Material / Miuix）：放在设置页而不是主题页，
-                // 保证切到 Miuix 后仍能在这里切回 Material。顺序对齐 KernelSU：界面风格在上，主题入口在下
+                // 保证切到 Miuix 后仍能在这里切回 Material。界面风格在上，主题入口在下。
                 list(
                     key = ThemeController.KEY_UI_MODE,
                     title = context.getString(R.string.settings_ui_mode),
@@ -171,35 +170,35 @@ fun SettingPage(activity: MainActivity, onOpenTheme: () -> Unit = {}) {
                     entryValues = UiMode.entries.map { it.value }.toTypedArray(),
                     default = UiMode.DEFAULT_VALUE,
                     summary = context.getString(R.string.settings_ui_mode_summary),
-                    leading = { PrefIconBadge(Icons.Filled.Style, Color(0xFF9C27B0)) },
+                    leading = { PrefIcon(Icons.Rounded.DisplaySettings) },
                     onChange = { ThemePrefs.notifyChanged() },
                 )
-                // 主题入口：Miuix 线为箭头（对齐 KernelSU），material 线保留取值行；
-                // 取值随 revision 重建而刷新（主题页改完返回立即刷新）
+                // 导航入口用箭头，不暴露内部色板名称。
                 click(
                     title = context.getString(R.string.theme_palette),
                     summary = context.getString(R.string.theme_palette_summary),
-                    leading = { PrefIconBadge(Icons.Filled.Palette, Color(0xFF673AB7)) },
-                    value = settings.stringFlow("palette_style", "TonalSpot").value,
+                    leading = { PrefIcon(Icons.Rounded.Palette) },
+                    value = "",
+                    trailing = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null) },
                     onClick = onOpenTheme,
                 )
 
                 // ---------------- 其他 ----------------
-                category(context.getString(R.string.other_settings))
+                group()
                 switch(
                     key = "auto_check_update",
                     title = context.getString(R.string.auto_check_update),
                     summary = context.getString(R.string.auto_check_update_summary),
                     // 与其他设置一致：默认关闭，由用户自行开启（HomePage 的读取默认值必须与此处相同）
                     default = false,
-                    leading = { PrefIconBadge(Icons.Filled.SystemUpdate, Color(0xFF4285F4)) },
+                    leading = { PrefIcon(Icons.Rounded.SystemUpdate) },
                 )
                 if (deviceSecure) {
                     switch(
                         key = "enable_biometric_unlock_verification",
                         title = context.getString(R.string.enable_biometric_unlock_verification),
                         default = false,
-                        leading = { PrefIconBadge(Icons.Filled.Fingerprint, Color(0xFF00ACC1)) },
+                        leading = { PrefIcon(Icons.Rounded.Fingerprint) },
                         beforeApply = { enable, apply ->
                             if (enable) {
                                 // 旧行为：验证通过才真正写入
@@ -217,14 +216,14 @@ fun SettingPage(activity: MainActivity, onOpenTheme: () -> Unit = {}) {
                     title = context.getString(R.string.tile_auto_start),
                     summary = context.getString(R.string.tile_auto_start_summary),
                     default = false,
-                    leading = { PrefIconBadge(Icons.Filled.Widgets, Color(0xFF4CAF50)) },
+                    leading = { PrefIcon(Icons.Rounded.Widgets) },
                 )
                 switch(
                     key = "enable_log",
                     title = context.getString(R.string.enable_log),
                     summary = context.getString(R.string.enable_log_summary),
                     default = false,
-                    leading = { PrefIconBadge(Icons.Filled.Description, Color(0xFF795548)) },
+                    leading = { PrefIcon(Icons.Rounded.Description) },
                     onChange = { value -> LogUtils.enable = value },
                 )
                 switch(
@@ -232,7 +231,7 @@ fun SettingPage(activity: MainActivity, onOpenTheme: () -> Unit = {}) {
                     title = context.getString(R.string.hide_desktop_module_icon),
                     summary = context.getString(R.string.hide_desktop_module_icon_summary),
                     default = false,
-                    leading = { PrefIconBadge(Icons.Filled.HideImage, Color(0xFF607D8B)) },
+                    leading = { PrefIcon(Icons.Rounded.VisibilityOff) },
                     onChange = { value ->
                         AppUtils(context).setComponentDisabled(
                             ComponentName(
@@ -245,10 +244,10 @@ fun SettingPage(activity: MainActivity, onOpenTheme: () -> Unit = {}) {
                 )
 
                 // ---------------- 备份/恢复/清除 ----------------
-                category(context.getString(R.string.backup_restore_clear))
+                group()
                 click(
                     title = context.getString(R.string.backup_data),
-                    leading = { PrefIconBadge(Icons.Filled.Backup, Color(0xFF4285F4)) },
+                    leading = { PrefIcon(Icons.Rounded.SaveAlt) },
                     onClick = {
                         FileUtils.checkDownloadDir(context, "ColorOSTools").apply {
                             if (isFile) delete()
@@ -265,7 +264,7 @@ fun SettingPage(activity: MainActivity, onOpenTheme: () -> Unit = {}) {
                 )
                 click(
                     title = context.getString(R.string.restore_data),
-                    leading = { PrefIconBadge(Icons.Filled.Restore, Color(0xFF34A853)) },
+                    leading = { PrefIcon(Icons.Rounded.Restore) },
                     onClick = {
                         FileUtils.checkDownloadDir(context, "ColorOSTools").apply {
                             if (isFile) delete()
@@ -277,7 +276,7 @@ fun SettingPage(activity: MainActivity, onOpenTheme: () -> Unit = {}) {
                 click(
                     title = context.getString(R.string.clear_all_data),
                     summary = context.getString(R.string.clear_all_data_summary),
-                    leading = { PrefIconBadge(Icons.Filled.DeleteSweep, Color(0xFFEA4335)) },
+                    leading = { PrefIcon(Icons.Rounded.Delete) },
                     onClick = { showClearDialog = true },
                 )
 

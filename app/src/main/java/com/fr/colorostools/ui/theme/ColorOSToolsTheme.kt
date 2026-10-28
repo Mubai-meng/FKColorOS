@@ -21,11 +21,12 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Density
 import androidx.core.view.WindowCompat
+import com.fr.colorostools.ui.shell.LocalCategoryBadgeColors
 import com.fr.colorostools.ui.shell.LocalEnableBlur
 import com.fr.colorostools.ui.shell.LocalEnableFloatingBottomBar
-import com.fr.colorostools.ui.shell.LocalEnableFloatingBottomBarBlur
 import com.fr.colorostools.ui.shell.LocalEnableNavigationBadge
 import com.fr.colorostools.ui.shell.LocalEnableSwipeDismiss
+import com.fr.colorostools.ui.shell.LocalFloatingBottomBarStyle
 import com.fr.colorostools.ui.shell.LocalModuleDescriptionMaxLines
 import com.fr.colorostools.ui.shell.LocalPagerInterceptionMode
 import com.fr.colorostools.ui.shell.ShellSettingsController
@@ -180,7 +181,8 @@ fun ColorOSToolsAppTheme(content: @Composable () -> Unit) {
         LocalEnableNavigationBadge provides shellSettings.navigationBadge,
         LocalEnableBlur provides shellSettings.enableBlur,
         LocalEnableFloatingBottomBar provides shellSettings.enableFloatingBottomBar,
-        LocalEnableFloatingBottomBarBlur provides shellSettings.enableFloatingBottomBarBlur,
+        LocalFloatingBottomBarStyle provides shellSettings.floatingBottomBarStyle,
+        LocalCategoryBadgeColors provides shellSettings.categoryBadgeColors,
         LocalEnableSwipeDismiss provides shellSettings.swipeDismiss,
         LocalPagerInterceptionMode provides shellSettings.pagerInterceptionMode,
         LocalModuleDescriptionMaxLines provides shellSettings.moduleDescriptionMaxLines,

@@ -16,7 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 
 /**
- * 色调卡片（迁移自 KernelSU `ui/component/material/MaterialTonalCard.kt`）：
+ * 色调卡片：
  * 未传回调时为静态卡片，传入 onClick / onLongClick 时按需可点。
  */
 @OptIn(ExperimentalFoundationApi::class)

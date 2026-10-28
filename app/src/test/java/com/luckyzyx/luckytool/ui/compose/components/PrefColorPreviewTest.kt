@@ -8,15 +8,15 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * 锁定颜色预览色块/圆点的描边取色规则。
+ * 锁定颜色预览色块的描边取色规则。
  *
  * 回归背景：描边原先取主题色的 `outline`。主题色可以选到白色，此时列表行与弹层都是浅色，
- * 白色描边等于没有描边，而两个颜色偏好的默认值正是 `#FFFFFFFF`，圆点会整块看不见。
+ * 白色描边等于没有描边，而两个颜色偏好的默认值正是 `#FFFFFFFF`，色块会整块看不见。
  * 规则改为只跟色块自身对比后，任何「主题色 × 所选颜色」组合都要么色块可见、要么描边可见。
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
-class ColorDotTest {
+class PrefColorPreviewTest {
 
     @Test
     fun `light color gets a dark border`() {

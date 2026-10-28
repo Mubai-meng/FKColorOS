@@ -57,8 +57,11 @@
     <string name="settings_enable_blur_summary">Enable blur effect for top and bottom bars.</string>
     <string name="settings_floating_bottom_bar">Floating bottom bar</string>
     <string name="settings_floating_bottom_bar_summary">Use Apple style floating bottom bar.</string>
-    <string name="settings_enable_glass">Liquid glass</string>
-    <string name="settings_enable_glass_summary">Enable liquid glass effect for floating bottom bar.</string>
+    <string name="settings_category_badge_colors">Colorful category icons</string>
+    <string name="settings_category_badge_colors_summary">Use colored badges for category rows (Apps, Status bar, …). Turn off for single-color icons that follow the theme.</string>
+    <string name="settings_floating_bottom_bar_style">Floating bottom bar style</string>
+    <string name="settings_floating_style_miuix">Miuix</string>
+    <string name="settings_floating_style_ios">iOS style (Liquid Glass)</string>
     <string name="color_red">Red</string>
     <string name="color_pink">Pink</string>
     <string name="color_purple">Purple</string>
@@ -1230,7 +1233,16 @@
     <string name="oplusota_copy_tip">Long press the input box to copy it individually</string>
     <string name="oplusota_copyall">Copy All</string>
     <string name="authorized" translatable="false">禁止引流、搬运、转载、售卖、分享、分流\n提倡授之以渔,切莫授之以鱼</string>
-    
+    <string name="home_module_inactive_summary">Enable the module in the framework manager</string>
+    <string name="home_info_loading">Reading device information…</string>
+    <string name="home_device_details_show">More device information</string>
+    <string name="home_device_details_hide">Less device information</string>
+    <string name="home_device_info_copied">Device OTA data copied</string>
+    <string name="home_device_pos" translatable="false">POS</string>
+    <string name="home_device_sas" translatable="false">SAS</string>
+    <string name="home_device_pas" translatable="false">PAS</string>
+    <string name="action_optimize_apps">Optimize apps</string>
+
     <!--Donate-->
     <string name="donate_tv_title">Support Development</string>
     <string name="donate_tv__summary">Click or long press to donate to the developer to support future updates</string>
@@ -1359,6 +1371,7 @@
     <string name="add">Add</string>
     <string name="remove">Remove</string>
     <string name="ignore">Ignore</string>
+    <string name="ignore_this_system_update">Ignore this system update</string>
     <string name="default_">Default</string>
     <string name="normal">Normal</string>
     <string name="all">All</string>
@@ -1609,6 +1622,70 @@
     <string name="weather_no_browser_enable">详情页应用内打开</string>
     <string name="weather_no_browser_enable_summary">天气详情页在应用内打开，不再跳转浏览器（热点新闻除外）</string>
 
+    <!-- 小布输入法（宿主 com.oplus.keyboard）：模糊增强 + 按键下滑快捷键 -->
+    <string name="oplus_keyboard_section_blur">液态玻璃模糊</string>
+    <string name="oplus_keyboard_blur_enable">强制启用模糊</string>
+    <string name="oplus_keyboard_blur_enable_summary">无视白名单、主题与深浅色条件，键盘一律按液态玻璃渲染</string>
+    <string name="oplus_keyboard_blur_radius">模糊强度</string>
+    <string name="oplus_keyboard_blur_radius_summary">键盘默认请求 150，数值越大越模糊</string>
+    <string name="oplus_keyboard_section_swipe">按键下滑快捷键</string>
+    <string name="oplus_keyboard_swipe_enable">启用下滑快捷键</string>
+    <string name="oplus_keyboard_swipe_enable_summary">在按键上向下滑动触发编辑动作，不误上屏字符</string>
+    <string name="oplus_keyboard_swipe_threshold">字母键触发距离</string>
+    <string name="oplus_keyboard_swipe_threshold_summary">下滑超过该距离才触发，越大越不易误触</string>
+    <string name="oplus_keyboard_swipe_t9_threshold">九宫格触发距离</string>
+    <string name="oplus_keyboard_swipe_t9_threshold_summary">九宫格键更高更密，需要更长的下滑距离</string>
+    <string name="oplus_keyboard_dp_value">%1$d dp</string>
+    <string name="oplus_keyboard_swipe_vibration">触发时震动</string>
+    <string name="oplus_keyboard_swipe_vibration_summary">下滑触发瞬间给一次长按级触感反馈</string>
+    <string name="oplus_keyboard_swipe_labels">在按键上显示动作标签</string>
+    <string name="oplus_keyboard_swipe_labels_summary">把绑定动作画在键面右下角，密码框不显示</string>
+    <string name="oplus_keyboard_swipe_hint">显示触发提示气泡</string>
+    <string name="oplus_keyboard_swipe_hint_summary">下滑过程中提示将执行的动作，触发后确认结果</string>
+    <string name="oplus_keyboard_qwerty_title">26 键字母绑定</string>
+    <string name="oplus_keyboard_qwerty_summary">a–z 共 26 个键</string>
+    <string name="oplus_keyboard_t9_title">九宫格数字绑定</string>
+    <string name="oplus_keyboard_t9_summary">数字键 2–9 共 8 个键</string>
+    <string name="oplus_keyboard_qwerty_category">26 键字母</string>
+    <string name="oplus_keyboard_t9_category">九宫格数字</string>
+    <string name="oplus_keyboard_key_action_summary">下滑该键触发的动作</string>
+    <string name="oplus_keyboard_key_text">%1$s 下滑输入的内容</string>
+    <string name="oplus_keyboard_key_text_summary">留空则按上面选的动作执行</string>
+    <string name="oplus_keyboard_key_text_hint">下滑该键时上屏这段文字</string>
+    <string name="oplus_keyboard_tab_qwerty">QWERTY</string>
+    <string name="oplus_keyboard_tab_t9">9-key</string>
+    <string name="oplus_keyboard_tab_options">Gestures</string>
+    <string name="oplus_keyboard_bind_title_qwerty">QWERTY swipe actions</string>
+    <string name="oplus_keyboard_bind_title_t9">9-key swipe actions</string>
+    <string name="oplus_keyboard_bind_intro_qwerty">Tap to set the swipe action, long-press to set the on-key label.</string>
+    <string name="oplus_keyboard_bind_intro_t9">Keys 2-9 can be assigned. Tap for the swipe action, long-press for the on-key label.</string>
+    <string name="oplus_keyboard_save_apply">Save and apply</string>
+    <string name="oplus_keyboard_saved">Saved and applied</string>
+    <string name="oplus_keyboard_insert_empty">Text cannot be empty</string>
+    <string name="oplus_keyboard_reset_default">Restore Z/X/C/V</string>
+    <string name="oplus_keyboard_clear_qwerty">Clear QWERTY</string>
+    <string name="oplus_keyboard_clear_t9">Clear 9-key</string>
+    <string name="oplus_keyboard_reset_done">Restored, tap Save to apply</string>
+    <string name="oplus_keyboard_clear_done">Cleared, tap Save to apply</string>
+    <string name="oplus_keyboard_confirm_title">Confirm</string>
+    <string name="oplus_keyboard_clear_qwerty_confirm">Clear all QWERTY swipe bindings?</string>
+    <string name="oplus_keyboard_clear_t9_confirm">Clear all 8 9-key swipe bindings?</string>
+    <string name="oplus_keyboard_unsaved">Unsaved changes</string>
+    <string name="oplus_keyboard_dialog_action_title">Swipe action for %1$s</string>
+    <string name="oplus_keyboard_dialog_text_title">Text for %1$s</string>
+    <string name="oplus_keyboard_dialog_text_hint">Text typed when swiping this key</string>
+    <string name="oplus_keyboard_dialog_text_help">Up to 1000 characters, newlines, symbols and emoji are supported.</string>
+    <string name="oplus_keyboard_label_dialog_title">Label on %1$s</string>
+    <string name="oplus_keyboard_label_auto">Auto (%1$s)</string>
+    <string name="oplus_keyboard_label_auto_none">Auto (no action)</string>
+    <string name="oplus_keyboard_label_custom">Custom text</string>
+    <string name="oplus_keyboard_label_custom_current">Custom (%1$s)</string>
+    <string name="oplus_keyboard_label_hide">Hide this key label</string>
+    <string name="oplus_keyboard_label_custom_title">%1$s · Custom label</string>
+    <string name="oplus_keyboard_label_hint">Up to 4 characters; empty restores Auto</string>
+    <string name="oplus_keyboard_label_hidden_mark">Hidden</string>
+    <string name="oplus_keyboard_t9_normal_key">Normal</string>
+
     <!-- 桌面长按菜单定制（宿主 com.android.launcher） -->
     <string name="launcher_menu_enable">启用了长按菜单定制</string>
     <string name="launcher_menu_enable_summary">关闭后，所有子开关均不生效</string>
@@ -1637,4 +1714,6 @@
     <string name="launcher_menu_hide_edit_summary">打开图标编辑页</string>
     <string name="launcher_menu_hide_service_card">隐藏「服务卡片」</string>
     <string name="launcher_menu_hide_service_card_summary">添加服务卡片到桌面</string>
+    <!-- 熄屏挂机（磁贴名） -->
+    <string name="fake_screen_tile_label">Fake Screen Off</string>
 </resources>

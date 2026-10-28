@@ -1,12 +1,16 @@
 package com.fr.colorostools.ui.compose.components
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material3.DropdownMenu
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenuGroup
+import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -16,6 +20,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import com.fr.colorostools.ui.theme.LocalUiMode
 import com.fr.colorostools.ui.theme.UiMode
 import top.yukonga.miuix.kmp.basic.DropdownEntry
@@ -23,7 +29,7 @@ import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 import top.yukonga.miuix.kmp.basic.IconButton as MiuixIconButton
 import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.More
+import top.yukonga.miuix.kmp.icon.extended.MoreCircle
 import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -32,7 +38,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
  *
  * 调用点不再自己写 material3 的 IconButton/DropdownMenu，分派统一读 [LocalUiMode]
  * （与 PrefCards.kt / PrefScope.kt 同一套惯例），两条线各自成对：
- *  - Material 线：material3 [IconButton]（48dp 触摸区）+ [DropdownMenu]；
+ *  - Material 线：material3 [IconButton]（48dp 触摸区）+ Expressive [DropdownMenuPopup]；
  *  - Miuix 线：库内 [MiuixIconButton]（40dp 触摸区、带 squircle 按压态）+
  *    [OverlayIconDropdownMenu]（库内弹层，展开/收起带 ContextClick 触感、选中带 Confirm 触感）。
  *
@@ -81,6 +87,23 @@ fun TopBarActionButton(
     }
 }
 
+/** 按外观选择对应图标，按钮触摸区域与按压效果沿用组件默认值。 */
+@Composable
+fun TopBarActionButton(
+    onClick: () -> Unit,
+    contentDescription: String?,
+    materialIcon: ImageVector,
+    miuixIcon: ImageVector = materialIcon,
+    modifier: Modifier = Modifier,
+) {
+    TopBarActionButton(
+        onClick = onClick,
+        contentDescription = contentDescription,
+        painter = rememberVectorPainter(if (LocalUiMode.current == UiMode.Miuix) miuixIcon else materialIcon),
+        modifier = modifier,
+    )
+}
+
 /**
  * 顶栏「更多」溢出菜单。
  *
@@ -103,7 +126,7 @@ fun TopBarOverflowMenu(
             modifier = modifier,
             content = {
                 MiuixIcon(
-                    imageVector = MiuixIcons.More,
+                    imageVector = MiuixIcons.MoreCircle,
                     contentDescription = contentDescription,
                     tint = MiuixTheme.colorScheme.onBackground,
                 )
@@ -114,17 +137,23 @@ fun TopBarOverflowMenu(
             var expanded by remember { mutableStateOf(false) }
             Box(modifier = modifier) {
                 IconButton(onClick = { expanded = true }) {
-                    Icon(Icons.Filled.MoreHoriz, contentDescription)
+                    Icon(Icons.Filled.MoreVert, contentDescription)
                 }
-                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    items.forEach { item ->
-                        DropdownMenuItem(
-                            text = { Text(item.label) },
-                            onClick = {
-                                expanded = false
-                                item.onClick()
-                            },
-                        )
+                DropdownMenuPopup(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    DropdownMenuGroup(
+                        shapes = MenuDefaults.groupShape(index = 0, count = 1),
+                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                    ) {
+                        items.forEachIndexed { index, item ->
+                            DropdownMenuItem(
+                                text = { Text(item.label) },
+                                shape = MenuDefaults.itemShape(index = index, count = items.size).shape,
+                                onClick = {
+                                    expanded = false
+                                    item.onClick()
+                                },
+                            )
+                        }
                     }
                 }
             }

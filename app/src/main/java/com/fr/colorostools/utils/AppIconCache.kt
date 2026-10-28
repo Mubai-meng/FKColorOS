@@ -53,24 +53,28 @@ object AppIconCache {
     /** 并发闸门：首次进页面会一次性请求整棵树的图标，串行度过低会让加载抢占 UI 线程的 CPU */
     private val loadGate = Semaphore(3)
 
-    /** 密度参与缓存键：同一包名在不同密度下需要不同像素尺寸的位图 */
-    private fun cacheKey(context: Context, packName: String): String =
-        "${context.resources.displayMetrics.density}@$packName"
+    /** 密度参与缓存键：同一包名在不同密度 / 不同目标尺寸下需要不同像素的位图 */
+    private fun cacheKey(context: Context, packName: String, size: Int?): String =
+        "${context.resources.configuration.densityDpi}:${size ?: 0}@$packName"
 
     /**
      * 订阅指定包名的 App 图标：首次调用触发一次后台加载，加载完成后写入状态驱动组合刷新
      * （重复调用同一包名复用同一状态，不会重复加载）。
      *
+     * [size] 为行内目标边长（像素），由调用方按 Compose 密度换算：位图按此尺寸光栅化，
+     * 避免自定义界面缩放时按固有尺寸拉伸导致模糊；传 0 / 省略则回退 [_TARGET_DP]。
+     *
      * @return 图标位图状态；值为 null 表示该包没有图标，或加载尚未完成
      */
-    fun state(context: Context, packName: String): State<ImageBitmap?> {
-        val key = cacheKey(context, packName)
+    fun state(context: Context, packName: String, size: Int = 0): State<ImageBitmap?> {
+        val targetPx = size.takeIf { it > 0 }
+        val key = cacheKey(context, packName, targetPx)
         val entry = cache.get(key) ?: Entry().also { cache.put(key, it) }
         if (!entry.started) {
             entry.started = true
             val appContext = context.applicationContext
             scope.launch {
-                val bitmap = loadGate.withPermit { loadIcon(appContext, packName) }
+                val bitmap = loadGate.withPermit { loadIcon(appContext, packName, targetPx) }
                 // 状态写回主线程，保证订阅方按标准快照流程重组
                 withContext(Dispatchers.Main.immediate) { entry.state.value = bitmap }
             }
@@ -78,10 +82,11 @@ object AppIconCache {
         return entry.state
     }
 
-    /** 后台加载：IPC + 按 [TARGET_DP] 目标尺寸光栅化 */
-    private fun loadIcon(context: Context, packName: String): ImageBitmap? = try {
+    /** 后台加载：IPC + 按目标像素光栅化 */
+    private fun loadIcon(context: Context, packName: String, sizePx: Int?): ImageBitmap? = try {
         AppUtils(context).getAppIcon(packName)?.let { drawable ->
-            val size = (TARGET_DP * context.resources.displayMetrics.density).roundToInt().coerceAtLeast(1)
+            val size = sizePx
+                ?: (TARGET_DP * context.resources.displayMetrics.density).roundToInt().coerceAtLeast(1)
             val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
             drawable.setBounds(0, 0, size, size)
             drawable.draw(Canvas(bitmap))

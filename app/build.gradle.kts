@@ -110,11 +110,10 @@ androidComponents {
         val buildType = variant.buildType ?: "None"
         variant.outputs.forEach { output ->
             val versionName = output.versionName.get()
-            val versionCode = output.versionCode.get()
-            val version = "$versionName($versionCode)"
-            println("buildVersion -> $version ($buildType)")
+            // 产物名只带 versionName，不再拼 (versionCode)：FKColorOS_v1.2.0_release.apk
+            println("buildVersion -> $versionName ($buildType)")
 
-            output.outputFileName.set("FKColorOS_v${version}_${buildType}.apk")
+            output.outputFileName.set("FKColorOS_v${versionName}_${buildType}.apk")
             println("outputFileName -> ${output.outputFileName.get()}")
         }
     }

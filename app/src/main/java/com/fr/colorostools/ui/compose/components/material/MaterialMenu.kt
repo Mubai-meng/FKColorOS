@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
 
 /**
- * 以按压点为锚点的下拉菜单（迁移自 KernelSU `ui/component/material/ExpressiveMenu.kt`）。
+ * 以按压点为锚点的下拉菜单。
  */
 @Composable
 fun MaterialAnchoredMenu(

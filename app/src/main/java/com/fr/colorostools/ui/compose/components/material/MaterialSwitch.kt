@@ -16,7 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 
 /**
- * Expressive 开关（迁移自 KernelSU `ui/component/material/MaterialSwitch.kt`）：
+ * Expressive 开关：
  * 选中显示对勾、未选中显示叉号图标。
  */
 @Composable

@@ -27,6 +27,9 @@ import top.yukonga.miuix.kmp.overlay.OverlayDialog
 
 /**
  * 捐赠二维码 Compose 对话框（旧 DialogDonateLayoutBinding 对话框的等价物）
+ *
+ * 2026-10-28 起主页「支持开发」入口已移除，本类当前无调用方；
+ * 保留是为了不丢三张收款码资源（[Base64CodeUtils]），恢复入口即可直接用。
  */
 @Obfuscate
 object DonateUtils {

@@ -24,6 +24,9 @@ import com.fr.colorostools.R
 import com.fr.colorostools.ui.compose.scopes.apps.AndroidSettingsSpec
 import com.fr.colorostools.ui.compose.scopes.apps.LauncherMenuDetailSpec
 import com.fr.colorostools.ui.compose.scopes.apps.LauncherMenuSpec
+import com.fr.colorostools.ui.compose.scopes.apps.OplusKeyboardQwertySpec
+import com.fr.colorostools.ui.compose.scopes.apps.OplusKeyboardSpec
+import com.fr.colorostools.ui.compose.scopes.apps.OplusKeyboardT9Spec
 import com.fr.colorostools.ui.compose.scopes.apps.WeatherNoBrowserSpec
 import com.fr.colorostools.ui.compose.scopes.apps.fluidCloudSpecs
 import com.fr.colorostools.ui.compose.components.PrefIndexItem
@@ -398,6 +401,7 @@ object ScopePageRegistry {
         "launcher",
         "launcher_menu",
         "weather_no_browser",
+        "oplus_keyboard",
         "aod",
         "lock_screen",
         "application",
@@ -560,6 +564,10 @@ object ScopePageRegistry {
         "launcher_menu_detail" to "launcher_menu_detail",
         // 天气详情不外跳（无旧 nav id 的新页）：自映射让搜索索引与树导航都能按 pageKey 解析
         "weather_no_browser" to "weather_no_browser",
+        // 小布输入法两功能（无旧 nav id 的新页）：自映射让 page() 子页跳转与搜索索引都能解析
+        "oplus_keyboard" to "oplus_keyboard",
+        "oplus_keyboard_qwerty" to "oplus_keyboard_qwerty",
+        "oplus_keyboard_t9" to "oplus_keyboard_t9",
     )
 
     init {
@@ -572,6 +580,12 @@ object ScopePageRegistry {
         register(LauncherMenuDetailSpec)
         // 天气详情不外跳：宿主 com.coloros.weather2（startActivity 级拦截）
         register(WeatherNoBrowserSpec)
+        // 小布输入法：宿主 com.oplus.keyboard（模糊增强 + 按键下滑快捷键）
+        // ⚠️ 不把 qwerty/t9 两页放进 treeOrder：同一宿主只占一个顶层节点，
+        //    两页作为 oplus_keyboard 的二级入口（page target=）进入
+        register(OplusKeyboardSpec)
+        register(OplusKeyboardQwertySpec)
+        register(OplusKeyboardT9Spec)
         // 后续按用户逐个指定的 hook 功能在此 register(...)
     }
 }

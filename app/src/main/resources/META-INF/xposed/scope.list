@@ -52,3 +52,30 @@ com.android.launcher
 #   - 拦截只改 http(s) + 浏览器目标，market:// 等其它 App 深链与 App 内自跳全部放行。
 # 详见 docs/天气App不外跳浏览器-方案分析.md。
 com.coloros.weather2
+
+# 小布输入法（模糊增强 + 按键下滑快捷键）：单宿主 com.oplus.keyboard。
+# 2026-10-28 逆向验证（宿主 1.8.35.17-mkt，_ref_kb_jadx）：
+#   - 模糊总闸 com.oplus.keyboard.base.util.h#b()（jadx 因类名大小写冲突显示为 AbstractC0818h），
+#     条件 = OPLUS>=40 && 系统「质感模糊」LiveData && 输入应用白名单 && 主题条件 c()；
+#   - 系统「质感模糊」开关读取点是 base.data.e#i()（唯一同时用 system_material_blur_enable
+#     与日志 tag SettingsPrefs 的无参 boolean 方法）；
+#   - 模糊半径唯一入口 com.oplus.view.ViewRootManager#setBlurRadius(int)（在 oplus-framework.jar）；
+#   - 键盘视图 input.view.body.r（getSoftKeyboard() 取模型 base.entity.f，其字段 l 是 List<base.entity.e>，
+#     每个 e 的 a=KeyCode、b/c=左右边界、d/e=上下边界、s=键面文字）；
+#   - IME 服务 service.ImeService extends base.service.b extends InputMethodService，
+#     自己覆写了 onUpdateSelection（选区块必须挂具体类，只挂基类声明收不到回调）。
+# 详见 docs/小布输入法功能移植-方案评估.md。
+com.oplus.keyboard
+
+# 熄屏挂机（假熄屏）：唯一宿主是系统框架 system_server。
+# 必须挂 system_server 的原因（2026-10-25 逆向实证，services.jar / oplus-services.jar）：
+#   - 电源键唯一汇聚点是 com.android.server.policy.PhoneWindowManager#powerPress(J I I)，
+#     单次（PowerKeyRule#onPress → IInputExt → ExtImpl → Wrapper → PWM）与早发式
+#     （PowerKeyRule#onKeyUp）两条路径最终都落到它；
+#   - 熄屏手段 SurfaceControl#setDisplayPowerMode 需要 system_server 的 display token
+#     （DisplayControl#getPhysicalDisplayIds/getPhysicalDisplayToken，public static）；
+#   - 屏幕超时需 hook PowerManagerService#getScreenOffTimeoutLocked（内存态返回值，
+#     **不写** Settings.System，避免污染用户设置）；假熄屏状态经 Settings.Global 单向
+#     通知磁贴，也在 system_server 侧写。
+# ⚠️ 作用域名必须是 system（LSPosed 显示「系统框架」），写 android 是弹窗进程，本功能不会生效。
+system

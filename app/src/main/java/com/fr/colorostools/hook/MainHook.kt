@@ -3,9 +3,11 @@ package com.fr.colorostools.hook
 import android.annotation.SuppressLint
 import android.util.Log
 import com.fr.colorostools.hook.hookers.AccessibilityEnhanceHook
+import com.fr.colorostools.hook.hookers.FakeScreenHook
 import com.fr.colorostools.hook.hookers.FluidCloudReplaceHook
 import com.fr.colorostools.hook.hookers.FluidCloudSeedlingHook
 import com.fr.colorostools.hook.hookers.LauncherMenuHook
+import com.fr.colorostools.hook.hookers.OplusKeyboardHook
 import com.fr.colorostools.hook.hookers.WeatherNoBrowserHook
 import com.fr.colorostools.ref.Reflect
 import com.fr.colorostools.utils.LogUtils
@@ -66,7 +68,8 @@ class MainHook : XposedModule() {
             LogUtils.i(TAG, "onSystemServerStarting", "主开关已停用（/sdcard/disable_colorostools），跳过钩子安装")
             return
         }
-        // 当前无 system_server 侧的功能（返回手势优化已整体移除）
+        // 熄屏挂机（假熄屏）：挂 PWM#powerPress 汇聚点，见 FakeScreenHook 类文档
+        FakeScreenHook.install()
     }
 
     /**
@@ -117,6 +120,11 @@ class MainHook : XposedModule() {
         if (pkg == HookEnv.PKG_WEATHER) {
             LogUtils.i(TAG, via, "天气宿主命中（$pkg），安装不外跳浏览器 Hooker")
             WeatherNoBrowserHook.install()
+        }
+        // 小布输入法（模糊增强 + 按键下滑快捷键）：两个功能独立开关，见 OplusKeyboardHook 类文档
+        if (pkg == HookEnv.PKG_OPLUS_KEYBOARD) {
+            LogUtils.i(TAG, via, "小布输入法宿主命中（$pkg），安装键盘 Hooker")
+            OplusKeyboardHook.install()
         }
         bindAppContextLater(loader)
     }

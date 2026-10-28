@@ -1,6 +1,7 @@
 package com.fr.colorostools.ui.compose.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,12 +10,13 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.fr.colorostools.ui.compose.components.material.MaterialItem
@@ -27,15 +29,18 @@ import com.fr.colorostools.ui.compose.components.miuix.MiuixPrefItem
 import com.fr.colorostools.ui.compose.components.miuix.MiuixSwitchItem
 import com.fr.colorostools.ui.theme.LocalUiMode
 import com.fr.colorostools.ui.theme.UiMode
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 
 /**
- * 卡片行 / 卡原语（KernelSU 风格分段卡片 / 独立卡片）。
+ * 卡片行 / 卡原语，支持分段卡片与独立卡片。
  *
- * **「设置区块」的唯一 API 是 `PrefScope` DSL**（`category()` / `switch()` / `click()` / `list()` /
+ * **「设置区块」的唯一 API 是 `PrefScope` DSL**（`group()` / `category()` / `switch()` / `click()` / `list()` /
  * `custom()`，见 `ui/compose/components/PrefScope.kt`）—— 所有标准设置页与作用域页都走它。
  * 本文件只保留 `custom()` 逃生舱（无法走 DSL 的自定义控件里的单行 / 单卡）所需的原始行 / 卡原语：
  * [PrefGroup] + [PrefRow] + [PrefSwitchRow]（组内行，形状由所属 [PrefGroup] 决定）、
- * [PrefCard] + [PrefSwitchCard]（不属于任何分段组的独立卡片）、[PrefIconBadge]（左侧彩色徽标）。
+ * [PrefCard] + [PrefSwitchCard]（不属于任何分段组的独立卡片）、[PrefIcon]（行首图标）、
+ * [PrefColorPreview]（行尾颜色预览色块）。
  *
  * UI 线分派：material 线用 `Segmented*` 原语 + `MaterialTheme`；Miuix 线用 `miuix/MiuixPref*`
  * 原语 + `MiuixTheme`；分派开关统一读 [LocalUiMode]。
@@ -108,29 +113,69 @@ fun PrefRow(
     }
 }
 
-/** 左侧彩色徽标图标：固定色圆角底 + 白色矢量图标（功能树分类页 / 其他页 / 设置页通用） */
+/** 设置入口的单色图标，使用当前外观的中性前景色和默认图标尺寸。 */
 @Composable
-fun PrefIconBadge(
-    icon: ImageVector,
-    color: Color,
-    modifier: Modifier = Modifier,
-    contentDescription: String? = null,
-) {
-    Box(
-        modifier = modifier
-            .size(40.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(color),
-        contentAlignment = Alignment.Center,
-    ) {
+fun PrefIcon(icon: ImageVector) {
+    if (LocalUiMode.current == UiMode.Miuix) {
+        MiuixIcon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.padding(end = 6.dp),
+            tint = MiuixTheme.colorScheme.onBackground,
+        )
+    } else {
         Icon(
             imageVector = icon,
-            contentDescription = contentDescription,
-            tint = Color.White,
-            modifier = Modifier.size(22.dp),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface,
         )
     }
 }
+
+/** 行尾颜色预览的边长：与行尾图片缩略图 [PrefImagePreview] 的行高同取 40dp */
+private val ColorPreviewSize = 40.dp
+
+/** 行尾颜色预览的圆角：正方形 + 6dp 圆角（与 [PrefImagePreview] 的圆角一致） */
+private val ColorPreviewCornerRadius = 6.dp
+
+/**
+ * 行尾颜色预览色块：正方形 + 圆角，用于颜色偏好条目右侧。
+ *
+ * 形态对齐 [PrefImagePreview]：同一 40dp 边长、同一 6dp 圆角，只是没有按图片比例拉宽，
+ * 因此是正方形 + 圆角而不是圆点、胶囊或宽扁的矩形。
+ *
+ * 描边不能取主题色的 `outline`：主题色本身可以选到白色，此时列表行与弹层都是浅色，
+ * 白色描边等于没有描边，而这两个颜色偏好的默认值正是 `#FFFFFFFF`，色块会整块看不见。
+ */
+@Composable
+fun PrefColorPreview(
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    val shape = RoundedCornerShape(ColorPreviewCornerRadius)
+
+    Box(
+        modifier
+            .size(ColorPreviewSize)
+            .clip(shape)
+            .background(color)
+            .border(1.dp, contrastBorder(color), shape)
+    )
+}
+
+/**
+ * 与 [color] 形成对比的描边色（[PrefColorPreview] 与颜色选择器的预览色块共用）。
+ *
+ * 只按颜色自身取反、不跟主题色走：浅色用深描边，深色用浅描边；半透明色一律用深描边，
+ * 因为它底下透出的是浅色内容（选择器里是浅灰棋盘格）。这样无论主题色与所选颜色怎么组合，
+ * 色块本体与轮廓至少有一个看得清 —— 「白色主题色 + 白色颜色」原先是两者都看不见的组合。
+ */
+internal fun contrastBorder(color: Color): Color =
+    if (color.alpha < 0.5f || color.luminance() > 0.5f) {
+        Color.Black.copy(alpha = 0.28f)
+    } else {
+        Color.White.copy(alpha = 0.38f)
+    }
 
 /** 分段卡片组内的开关条目：整行点击切换，尾部为 Expressive 开关 */
 @Composable
@@ -189,7 +234,7 @@ fun PrefRowInset(
 
 /**
  * 独立卡片（不属于任何分段组时使用）。
- * 外观与主题页一致：KernelSU MaterialListItem（surfaceBright 容器 + 16dp 外圆角）/
+ * 外观与主题页一致：Material（surfaceBright 容器 + 16dp 外圆角）/
  * Miuix `MiuixPrefItem`（16dp 外圆角 + 12dp 水平内缩）。
  */
 @Composable

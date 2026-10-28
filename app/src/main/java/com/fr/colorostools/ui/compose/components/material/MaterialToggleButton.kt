@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 
 /**
- * Expressive 切换按钮（迁移自 KernelSU `ui/component/material/MaterialToggleButton.kt`），
+ * Expressive 切换按钮，
  * 配合 ButtonGroupDefaults 的分段形状可组成按钮组。
  */
 @Composable

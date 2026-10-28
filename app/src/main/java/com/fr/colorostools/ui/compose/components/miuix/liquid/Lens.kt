@@ -1,5 +1,5 @@
-// Adapted from Kyant0/AndroidLiquidGlass — https://github.com/Kyant0/AndroidLiquidGlass (Apache 2.0).
-// Mirrored from compose-miuix-ui example.
+// Copyright 2026, compose-miuix-ui contributors
+// SPDX-License-Identifier: Apache-2.0
 
 package com.fr.colorostools.ui.compose.components.miuix.liquid
 
@@ -10,6 +10,13 @@ import top.yukonga.miuix.kmp.blur.BackdropEffectScope
 import top.yukonga.miuix.kmp.blur.isRuntimeShaderSupported
 import top.yukonga.miuix.kmp.blur.runtimeShaderEffect
 
+/**
+ * 圆角矩形折射透镜，可选边缘色散效果。
+ *
+ * @param chromaticAberration 边缘色散强度。`0` 表示禁用（改用更廉价的无色散着色器）。
+ *  典型取值：`0.1` 轻微、`0.2` 药丸控件质感、`0.3+` 明显彩虹光晕。色散偏移量随折射
+ *  深度缩放，因此集中在边缘折射带的外侧。
+ */
 fun BackdropEffectScope.lens(
     refractionHeight: Float,
     refractionAmount: Float,

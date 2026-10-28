@@ -1,5 +1,5 @@
 /*
- * Ported from KernelSU manager (GPL-3.0) `ui/component/material/SegmentedList.kt`.
+ * Material 分段列表组件（GPL-3.0）。
  */
 package com.fr.colorostools.ui.compose.components.material
 
@@ -214,7 +214,7 @@ class MaterialGroupScope {
     }
 }
 
-/** 动态分段列：条目可显隐，显隐时带弹性过渡（对齐 KernelSU） */
+/** 动态分段列：条目可显隐，显隐时带弹性过渡 */
 @Composable
 fun MaterialGroup(
     modifier: Modifier = Modifier,

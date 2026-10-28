@@ -1,17 +1,14 @@
 package com.fr.colorostools.ui.theme
 
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 /**
  * 共享设计令牌（design tokens）：Material 与 Miuix 两条组件线共用的尺寸常量单一来源。
  *
  * 引入背景：UI 组件风格更换后，同样的圆角与间距被分散定义在
  * [com.fr.colorostools.ui.compose.components.material.SegmentedList]（material 线）、
- * [com.fr.colorostools.ui.compose.components.miuix.MiuixPrefList]（Miuix 线）与
- * [com.fr.colorostools.ui.compose.components.miuix.MiuixCompactTopBar]（Miuix 顶栏）三处，
+ * [com.fr.colorostools.ui.compose.components.miuix.MiuixPrefList]（Miuix 线）等处，
  * 语义相同但值各自维护，后续新增主题/外观线时需多处同步、极易漂移。
  *
  * 统一到此处后，新增外观线只需引用本对象即可对齐几何观感。命名对齐「视觉语义」而非
@@ -41,15 +38,4 @@ object DesignTokens {
     /** 卡片相对屏幕左右两侧的水平内缩。 */
     val CardHorizontalInset: Dp = 12.dp
 
-    /** 单行顶栏高度（对齐 Miuix 库内 TopAppBarDefaults.CollapsedHeight）。 */
-    val TopBarHeight: Dp = 52.dp
-
-    /** 顶栏返回键起始 / 动作键结束的水平内边距。 */
-    val TopBarHorizontalPadding: Dp = 16.dp
-
-    /** 顶栏标题与返回键之间的间距。 */
-    val TopBarTitleStartPadding: Dp = 16.dp
-
-    /** 顶栏标题字号：Material 与 Miuix 两条外观线共用的统一标题字号。 */
-    val TopBarTitleSize: TextUnit = 24.sp
 }

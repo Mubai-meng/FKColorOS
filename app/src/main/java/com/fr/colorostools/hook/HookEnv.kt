@@ -82,6 +82,19 @@ object HookEnv {
      */
     const val PKG_WEATHER = "com.coloros.weather2"
 
+    /**
+     * 小布输入法（`com.oplus.keyboard`）：模糊增强 + 按键下滑快捷键两个功能宿主。
+     *
+     * 逆向实证（宿主 1.8.35.17-mkt，`_ref_kb_jadx`）：
+     * - 模糊总闸 `com.oplus.keyboard.base.util.h#b()`（jadx 显示为 `AbstractC0818h`，因类名大小写冲突）；
+     * - 系统「质感模糊」开关读取 `base.data.e#i()`；
+     * - 键盘视图 `input.view.body.r`（`getSoftKeyboard()` 取按键模型）与按键模型字段 `l`（`List<e>`）；
+     * - IME 服务 `service.ImeService`（extends `base.service.b` extends `InputMethodService`，
+     *   **覆写了 `onUpdateSelection`**，选区块要挂具体类）。
+     * 见 `hook/hookers/OplusKeyboardHook.kt` 与 `docs/小布输入法功能移植-方案评估.md`。
+     */
+    const val PKG_OPLUS_KEYBOARD = "com.oplus.keyboard"
+
     /** 设置页偏好所在 group（与 App 侧 `SettingsPrefs` 一致） */
     const val PREFS_SETTINGS = "SettingsPrefs"
 

@@ -105,6 +105,12 @@
 #    ** requireNonNull(...);
 #}
 
+# libxposed 按 java_init.list 里写死的类名反射加载模块入口。
+# 虽有 -adaptresourcefilecontents，但它依赖 R8 对 resources 目录文本资源的适配，
+# 一旦失配就是「模块静默不加载、零日志」。正式版直接固定入口类名，杜绝该类风险；
+# 成员（hook 逻辑）仍照常参与 R8 优化与压缩。
+-keep class com.fr.colorostools.hook.MainHook { *; }
+
 -dontwarn io.github.libxposed.annotation.**
 -adaptresourcefilecontents META-INF/xposed/java_init.list
 -keep,allowoptimization,allowobfuscation public class * extends io.github.libxposed.api.XposedModule {
