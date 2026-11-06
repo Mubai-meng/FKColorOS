@@ -166,4 +166,13 @@ object HookEnv {
     /** 读整数设置（slider 等写入的是 Int，不能用 getString 读） */
     fun settingInt(key: String, default: Int = 0): Int =
         runCatching { settings?.getInt(key, default) ?: default }.getOrDefault(default)
+
+    /**
+     * 读字符串集合设置（应用多选名单用）。
+     *
+     * 返回**不可变副本**：remote prefs 的 `getStringSet` 按约定不得修改返回的 Set
+     * （改了不一定回写、还可能把框架侧缓存弄脏），宿主侧只读比对就够了。
+     */
+    fun settingStringSet(key: String, default: Set<String> = emptySet()): Set<String> =
+        runCatching { settings?.getStringSet(key, default)?.toSet() ?: default }.getOrDefault(default)
 }

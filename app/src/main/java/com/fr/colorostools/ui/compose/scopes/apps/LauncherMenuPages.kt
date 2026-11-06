@@ -44,6 +44,16 @@ val LauncherMenuSpec = ScopePageSpec(
         summary = ctx.getString(R.string.launcher_menu_detail_summary),
         enabled = featureOn,
     )
+
+    // ---------------------------------------------------------- 隐藏应用（独立功能，同一宿主）
+    // 与长按菜单共用「系统桌面」这个功能树顶层节点：作为二级入口进入，不另占 treeOrder 节点。
+    // 长按菜单总开关与本组无门控关系（两套 hook 互不依赖），所以不带 enabled。
+    category(ctx.getString(R.string.launcher_hidden_section_root))
+    page(
+        title = ctx.getString(R.string.launcher_hidden_title),
+        target = "launcher_hidden_apps",
+        summary = ctx.getString(R.string.launcher_hidden_title_summary),
+    )
 }
 
 /**

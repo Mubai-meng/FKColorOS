@@ -452,7 +452,7 @@
     <string name="set_aod_typeface_mode">设置息屏字体模式</string>
     <string name="apply_aod_clock_typeface">应用字体到息屏时钟</string>
     <!--LockScreen-->
-    <string name="LockScreen">锁屏相关</string>
+    <string name="LockScreen">锁屏</string>
     <string name="LockScreenClockComponent">锁屏时钟组件</string>
     <string name="remove_lock_screen_clock_component">移除锁屏时钟组件</string>
     <string name="lock_screen_clock_redone_mode">锁屏时钟“红 1”模式</string>
@@ -1421,6 +1421,13 @@
     <string name="a11y_whitelist_title">智能授权白名单</string>
     <string name="a11y_whitelist_summary">%d 个应用</string>
     <!-- 桌面长按菜单定制（宿主 com.android.launcher） -->
+    <!-- 天气（宿主 com.coloros.weather2）：隐藏广告 / 隐藏全部运营卡片 / 详情页应用内打开 -->
+    <string name="weather_category_purify">内容净化</string>
+    <string name="weather_hide_ads">隐藏广告</string>
+    <string name="weather_hide_ads_summary">隐藏运营卡片里的推广位与启动开屏广告</string>
+    <string name="weather_hide_operations">隐藏全部运营卡片</string>
+    <string name="weather_hide_operations_summary">首页运营卡片区整体不显示（含实时提醒卡片）</string>
+    <string name="weather_category_browse">浏览</string>
     <string name="weather_no_browser_enable">详情页应用内打开</string>
     <string name="weather_no_browser_enable_summary">二级页不再跳浏览器（热点新闻除外）</string>
     <!-- 小布输入法（宿主 com.oplus.keyboard）：模糊增强 + 按键下滑快捷键 -->
@@ -1522,4 +1529,53 @@
     <string name="home_device_details_hide">收起详细信息</string>
     <string name="home_device_info_copied">已复制设备 OTA 数据</string>
     <string name="action_optimize_apps">优化应用</string>
+
+    <!-- 锁屏：通知区域下移（宿主 com.android.systemui） -->
+    <string name="keyguard_ntf_offset_enable">锁屏通知区域下移</string>
+    <string name="keyguard_ntf_offset_enable_summary">把锁屏通知整体往下推，避开时钟区域</string>
+    <string name="keyguard_ntf_offset_dp">下移距离</string>
+    <string name="keyguard_ntf_offset_dp_summary">静止、拖拽与通知中心三种状态同时生效</string>
+    <string name="keyguard_ntf_offset_dp_value">%1$d dp</string>
+
+    <!-- 系统桌面：隐藏应用（宿主 com.android.launcher） -->
+    <string name="launcher_hidden_section_root">隐藏应用</string>
+    <string name="launcher_hidden_title">隐藏应用</string>
+    <string name="launcher_hidden_title_summary">双指张开、多任务与彻底隐藏</string>
+    <string name="launcher_hidden_section_folder">隐藏应用文件夹</string>
+    <string name="launcher_hidden_pinch">桌面双指张开打开隐藏应用</string>
+    <string name="launcher_hidden_pinch_summary">在桌面双指外张直接进入</string>
+    <string name="launcher_hidden_recents">多任务显示已隐藏应用</string>
+    <string name="launcher_hidden_recents_summary">多任务里也能切回隐藏应用</string>
+    <string name="launcher_hidden_section_totally">彻底隐藏应用</string>
+    <string name="launcher_hidden_enable">彻底隐藏所选应用图标</string>
+    <string name="launcher_hidden_enable_summary">桌面、抽屉与搜索都看不到</string>
+    <string name="launcher_hidden_list_title">彻底隐藏应用列表</string>
+    <string name="launcher_hidden_list_summary">已选 %1$d 个应用</string>
+    <string name="launcher_hidden_disabled_hint">启用彻底隐藏应用</string>
+    <string name="launcher_hidden_disabled_hint_summary">名单里有 %1$d 个应用，当前未生效；点击启用</string>
+    <!-- ============ 浮窗（小窗）功能页 ============ -->
+    <string name="FloatWindow">浮窗</string>
+    <string name="float_window_section_multi">多窗口</string>
+    <string name="float_window_section_recents">多任务</string>
+    <string name="float_window_section_edge">贴边挂机</string>
+    <string name="float_window_section_size">比例与尺寸</string>
+    <string name="float_window_count_enable">修改小窗数量上限</string>
+    <string name="float_window_count_enable_summary">提高同时打开的小窗数量</string>
+    <string name="float_window_count">数量上限</string>
+    <string name="float_window_count_summary">对之后新开的窗口生效</string>
+    <string name="float_window_count_value">%1$d 个</string>
+    <string name="float_window_recents_hide">多任务隐藏小窗应用</string>
+    <string name="float_window_recents_hide_summary">需要勾选「系统桌面」作用域</string>
+    <string name="float_window_recents_closed_hide">关闭小窗时从多任务隐藏</string>
+    <string name="float_window_recents_closed_hide_summary">重新打开该应用后恢复显示</string>
+    <string name="float_window_edge_hang">悬浮小窗贴边挂机</string>
+    <string name="float_window_edge_hang_summary">贴边后应用继续在台前运行，不退回后台</string>
+    <string name="float_window_edge_hang_mute">小窗贴边挂机静音</string>
+    <string name="float_window_edge_hang_mute_summary">小窗回到前台时恢复原音量</string>
+    <string name="float_window_edge_white_bar">小窗贴边显示为白色竖条</string>
+    <string name="float_window_edge_white_bar_summary">屏幕边缘只留一条细白色胶囊，不显示图标</string>
+    <string name="float_window_landscape_ratio">横屏应用小窗保持比例</string>
+    <string name="float_window_landscape_ratio_summary">横屏应用不再被拉成竖屏比例</string>
+    <string name="float_window_edge_size">优化小窗贴边位置及最大尺寸</string>
+    <string name="float_window_edge_size_summary">只留 8dp 边距，小窗可以贴到屏幕边缘</string>
 </resources>

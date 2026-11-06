@@ -22,12 +22,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fr.colorostools.R
 import com.fr.colorostools.ui.compose.scopes.apps.AndroidSettingsSpec
+import com.fr.colorostools.ui.compose.scopes.apps.FloatWindowSpec
+import com.fr.colorostools.ui.compose.scopes.apps.LauncherHiddenAppsSpec
 import com.fr.colorostools.ui.compose.scopes.apps.LauncherMenuDetailSpec
 import com.fr.colorostools.ui.compose.scopes.apps.LauncherMenuSpec
+import com.fr.colorostools.ui.compose.scopes.apps.LockScreenSpec
 import com.fr.colorostools.ui.compose.scopes.apps.OplusKeyboardQwertySpec
 import com.fr.colorostools.ui.compose.scopes.apps.OplusKeyboardSpec
 import com.fr.colorostools.ui.compose.scopes.apps.OplusKeyboardT9Spec
-import com.fr.colorostools.ui.compose.scopes.apps.WeatherNoBrowserSpec
+import com.fr.colorostools.ui.compose.scopes.apps.WeatherSpec
 import com.fr.colorostools.ui.compose.scopes.apps.fluidCloudSpecs
 import com.fr.colorostools.ui.compose.components.PrefIndexItem
 import com.fr.colorostools.ui.compose.components.PrefScopeBuilder
@@ -400,10 +403,11 @@ object ScopePageRegistry {
         "statusbar",
         "launcher",
         "launcher_menu",
-        "weather_no_browser",
+        "weather",
         "oplus_keyboard",
         "aod",
         "lock_screen",
+        "float_window",
         "application",
         "miscellaneous",
         "oplus_screenshot",
@@ -467,6 +471,8 @@ object ScopePageRegistry {
         "launcher" to R.string.Desktop,
         "aod" to R.string.AodRelated,
         "lock_screen" to R.string.LockScreen,
+        // 浮窗是跨进程分类节点（system_server 六项 + 系统桌面一项），没有单一目标 App 名可借用
+        "float_window" to R.string.FloatWindow,
         "application" to R.string.Application,
         "miscellaneous" to R.string.Miscellaneous,
         // 排序页不是功能树 root，登记标题只为顶栏兜底标题（经 page() 进入时用入口行标题）
@@ -562,8 +568,14 @@ object ScopePageRegistry {
         // 桌面长按菜单定制（无旧 nav id 的新页）：自映射让 page() 跳转与搜索索引都能解析
         "launcher_menu" to "launcher_menu",
         "launcher_menu_detail" to "launcher_menu_detail",
-        // 天气详情不外跳（无旧 nav id 的新页）：自映射让搜索索引与树导航都能按 pageKey 解析
-        "weather_no_browser" to "weather_no_browser",
+        // 桌面隐藏应用四件套（无旧 nav id 的新页）：launcher_menu 的二级入口 + 搜索索引
+        "launcher_hidden_apps" to "launcher_hidden_apps",
+        // 锁屏通知区域下移（无旧 nav id 的新页）：lock_screen 顶层节点，自映射让搜索索引能解析
+        "lock_screen" to "lock_screen",
+        // 浮窗八功能（无旧 nav id 的新页）：float_window 顶层节点，自映射让搜索索引能解析
+        "float_window" to "float_window",
+        // 天气三功能（无旧 nav id 的新页）：自映射让搜索索引与树导航都能按 pageKey 解析
+        "weather" to "weather",
         // 小布输入法两功能（无旧 nav id 的新页）：自映射让 page() 子页跳转与搜索索引都能解析
         "oplus_keyboard" to "oplus_keyboard",
         "oplus_keyboard_qwerty" to "oplus_keyboard_qwerty",
@@ -578,8 +590,16 @@ object ScopePageRegistry {
         // 桌面长按菜单定制：宿主 com.android.launcher（功能七）
         register(LauncherMenuSpec)
         register(LauncherMenuDetailSpec)
-        // 天气详情不外跳：宿主 com.coloros.weather2（startActivity 级拦截）
-        register(WeatherNoBrowserSpec)
+        // 桌面隐藏应用四件套（双指张开 / 多任务显示已隐藏 / 彻底隐藏图标 / 彻底隐藏列表）：
+        // ⚠️ 同为 com.android.launcher 宿主，**不进 treeOrder** —— 它挂在 launcher_menu 的二级入口里，
+        //    否则会出现两个同名的「系统桌面」顶层节点
+        register(LauncherHiddenAppsSpec)
+        // 锁屏通知区域下移：宿主 com.android.systemui（lock_screen 顶层节点，treeOrder 已含此键）
+        register(LockScreenSpec)
+        // 浮窗八功能：system_server + 系统桌面两宿主（float_window 顶层节点，treeOrder 已含此键）
+        register(FloatWindowSpec)
+        // 天气（宿主 com.coloros.weather2）：隐藏广告 / 隐藏全部运营卡片 / 详情页应用内打开
+        register(WeatherSpec)
         // 小布输入法：宿主 com.oplus.keyboard（模糊增强 + 按键下滑快捷键）
         // ⚠️ 不把 qwerty/t9 两页放进 treeOrder：同一宿主只占一个顶层节点，
         //    两页作为 oplus_keyboard 的二级入口（page target=）进入

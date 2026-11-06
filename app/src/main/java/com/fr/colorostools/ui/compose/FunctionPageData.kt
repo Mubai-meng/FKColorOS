@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.BrightnessMedium
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.SignalCellularAlt
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -62,6 +63,7 @@ internal val categoryBadges: Map<String, CategoryBadge> = mapOf(
     "launcher" to CategoryBadge(Icons.Filled.Home, Color(0xFFFF9800)),
     "aod" to CategoryBadge(Icons.Filled.BrightnessMedium, Color(0xFF9C27B0)),
     "lock_screen" to CategoryBadge(Icons.Filled.Lock, Color(0xFF00BCD4)),
+    "float_window" to CategoryBadge(Icons.Filled.PictureInPictureAlt, Color(0xFF009688)),
     "application" to CategoryBadge(Icons.Filled.Apps, Color(0xFF3F51B5)),
     "miscellaneous" to CategoryBadge(Icons.Filled.MoreHoriz, Color(0xFF607D8B)),
 )

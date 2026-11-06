@@ -507,7 +507,7 @@
     <string name="apply_aod_clock_typeface">Apply typeface to aod clock</string>
     
     <!--LockScreen-->
-    <string name="LockScreen">Lockscreen Related</string>
+    <string name="LockScreen">Lock screen</string>
     
     <string name="LockScreenClockComponent">Lock Screen Clock Component</string>
     <string name="remove_lock_screen_clock_component">Remove lock screen clock component</string>
@@ -1618,7 +1618,13 @@
     <string name="a11y_whitelist_title">智能授权白名单</string>
     <string name="a11y_whitelist_summary">%d 个应用</string>
 
-    <!-- 天气详情页应用内打开（宿主 com.coloros.weather2） -->
+    <!-- 天气（宿主 com.coloros.weather2）：隐藏广告 / 隐藏全部运营卡片 / 详情页应用内打开 -->
+    <string name="weather_category_purify">内容净化</string>
+    <string name="weather_hide_ads">隐藏广告</string>
+    <string name="weather_hide_ads_summary">隐藏运营卡片里的推广位与启动开屏广告</string>
+    <string name="weather_hide_operations">隐藏全部运营卡片</string>
+    <string name="weather_hide_operations_summary">首页运营卡片区整体不显示（含实时提醒卡片）</string>
+    <string name="weather_category_browse">浏览</string>
     <string name="weather_no_browser_enable">详情页应用内打开</string>
     <string name="weather_no_browser_enable_summary">天气详情页在应用内打开，不再跳转浏览器（热点新闻除外）</string>
 
@@ -1716,4 +1722,53 @@
     <string name="launcher_menu_hide_service_card_summary">添加服务卡片到桌面</string>
     <!-- 熄屏挂机（磁贴名） -->
     <string name="fake_screen_tile_label">Fake Screen Off</string>
+
+    <!-- 锁屏：通知区域下移（宿主 com.android.systemui） -->
+    <string name="keyguard_ntf_offset_enable">Move lock screen notifications down</string>
+    <string name="keyguard_ntf_offset_enable_summary">Push notifications away from the clock area</string>
+    <string name="keyguard_ntf_offset_dp">Offset</string>
+    <string name="keyguard_ntf_offset_dp_summary">Applies to the resting, dragging and notification-center states</string>
+    <string name="keyguard_ntf_offset_dp_value">%1$d dp</string>
+
+    <!-- 系统桌面：隐藏应用（宿主 com.android.launcher） -->
+    <string name="launcher_hidden_section_root">Hidden apps</string>
+    <string name="launcher_hidden_title">Hidden apps</string>
+    <string name="launcher_hidden_title_summary">Pinch out, recents, and completely hidden icons</string>
+    <string name="launcher_hidden_section_folder">Hidden apps folder</string>
+    <string name="launcher_hidden_pinch">Pinch out to open hidden apps</string>
+    <string name="launcher_hidden_pinch_summary">Spread two fingers on the home screen</string>
+    <string name="launcher_hidden_recents">Show hidden apps in recents</string>
+    <string name="launcher_hidden_recents_summary">Hidden apps stay switchable in recents</string>
+    <string name="launcher_hidden_section_totally">Completely hidden apps</string>
+    <string name="launcher_hidden_enable">Completely hide selected app icons</string>
+    <string name="launcher_hidden_enable_summary">Hidden from home screen, drawer and search</string>
+    <string name="launcher_hidden_list_title">Completely hidden app list</string>
+    <string name="launcher_hidden_list_summary">%1$d app(s) selected</string>
+    <string name="launcher_hidden_disabled_hint">Enable completely hidden apps</string>
+    <string name="launcher_hidden_disabled_hint_summary">%1$d app(s) kept in the list but not hidden; tap to enable</string>
+    <!-- ============ 浮窗（小窗）功能页 ============ -->
+    <string name="FloatWindow">Floating window</string>
+    <string name="float_window_section_multi">Multiple windows</string>
+    <string name="float_window_section_recents">Recents</string>
+    <string name="float_window_section_edge">Edge hang</string>
+    <string name="float_window_section_size">Aspect ratio &amp; size</string>
+    <string name="float_window_count_enable">Change the floating window limit</string>
+    <string name="float_window_count_enable_summary">Raise how many floating windows can be open at once</string>
+    <string name="float_window_count">Window limit</string>
+    <string name="float_window_count_summary">Applies to new floating windows</string>
+    <string name="float_window_count_value">%1$d windows</string>
+    <string name="float_window_recents_hide">Hide floating windows in Recents</string>
+    <string name="float_window_recents_hide_summary">Requires the System launcher scope</string>
+    <string name="float_window_recents_closed_hide">Hide from Recents when a floating window is closed</string>
+    <string name="float_window_recents_closed_hide_summary">Returns once the app is reopened</string>
+    <string name="float_window_edge_hang">Keep floating window alive when docked to the edge</string>
+    <string name="float_window_edge_hang_summary">The app keeps running instead of going to the background</string>
+    <string name="float_window_edge_hang_mute">Mute while docked</string>
+    <string name="float_window_edge_hang_mute_summary">Restores the original volume when the window comes back</string>
+    <string name="float_window_edge_white_bar">Show docked window as a white bar</string>
+    <string name="float_window_edge_white_bar_summary">A thin white pill instead of icons at the screen edge</string>
+    <string name="float_window_landscape_ratio">Keep aspect ratio for landscape apps</string>
+    <string name="float_window_landscape_ratio_summary">Landscape apps are no longer stretched into a portrait shape</string>
+    <string name="float_window_edge_size">Optimize docked position and maximum size</string>
+    <string name="float_window_edge_size_summary">Keeps an 8dp margin so a window can reach the screen edge</string>
 </resources>

@@ -40,7 +40,10 @@ com.android.settings
 #   - BasePopupListWindowContainer#segments() 是渲染（refreshList→buildDisplayList）与
 #     点击（n8.a#onItemClick，实时重调）的公共上游；深链段 take(currentVisibleDeepShortcutLimit())；
 #   - MordFunctions 的 mMoreSystemShortcutList 与 popupListItems 构造时同步 add（下标对应）。
-# 详见 docs/桌面长按菜单移植-方案评估.md。
+#     详见 docs/桌面长按菜单移植-方案评估.md。
+# 隐藏应用四件套（双指张开打开隐藏应用 / 多任务显示已隐藏应用 / 彻底隐藏所选应用图标 /
+# 彻底隐藏应用列表）：同为 com.android.launcher 宿主，Hooker 见
+# hook/hookers/LauncherHiddenAppsHook.kt（其中「彻底隐藏应用列表」是模块 App 内的页，无需宿主）。
 com.android.launcher
 
 # 天气 App 不外跳浏览器（应用内 WebView 展示二级页）：单宿主 com.coloros.weather2。
@@ -66,6 +69,17 @@ com.coloros.weather2
 #     自己覆写了 onUpdateSelection（选区块必须挂具体类，只挂基类声明收不到回调）。
 # 详见 docs/小布输入法功能移植-方案评估.md。
 com.oplus.keyboard
+
+# 锁屏通知区域下移：单宿主 com.android.systemui。
+# 2026-11-06 逆向验证（系统界面 17.99.02，E:/WorkBuddy_All/APP/oneplus）：
+#   - com.android.systemui.shade.NotificationPanelViewController 有
+#     getKeyguardNotificationStaticPadding()I 与 isKeyguardShowing()Z；
+#   - com.oplus.systemui.notification.lockscreen.stack.OplusLockscreenShadeTransitionControllerExImpl
+#     有 getNtfTopPaddingInLockscreen()I / getNtfTopPaddingInLockscreenNtfCenter()I；
+#   - 旧实现 com.android.systemui.statusbar.OplusLockscreenShadeTransitionControllerEx 亦在（兜底）。
+# 三条 padding 通道互补（静止/拖拽/收起 + 通知中心展开态 + 收起动画态），缺一条就会在对应状态下露出原位。
+# 详见 hook/hookers/KeyguardNotificationOffsetHook.kt 类文档。
+com.android.systemui
 
 # 熄屏挂机（假熄屏）：唯一宿主是系统框架 system_server。
 # 必须挂 system_server 的原因（2026-10-25 逆向实证，services.jar / oplus-services.jar）：

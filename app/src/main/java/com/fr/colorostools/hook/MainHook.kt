@@ -6,9 +6,16 @@ import com.fr.colorostools.hook.hookers.AccessibilityEnhanceHook
 import com.fr.colorostools.hook.hookers.FakeScreenHook
 import com.fr.colorostools.hook.hookers.FluidCloudReplaceHook
 import com.fr.colorostools.hook.hookers.FluidCloudSeedlingHook
+import com.fr.colorostools.hook.hookers.FloatWindowCountHook
+import com.fr.colorostools.hook.hookers.FloatWindowEdgeHangHook
+import com.fr.colorostools.hook.hookers.FloatWindowRecentsHook
+import com.fr.colorostools.hook.hookers.FloatWindowSizeHook
+import com.fr.colorostools.hook.hookers.KeyguardNotificationOffsetHook
+import com.fr.colorostools.hook.hookers.LauncherHiddenAppsHook
 import com.fr.colorostools.hook.hookers.LauncherMenuHook
 import com.fr.colorostools.hook.hookers.OplusKeyboardHook
 import com.fr.colorostools.hook.hookers.WeatherNoBrowserHook
+import com.fr.colorostools.hook.hookers.WeatherPurifyHook
 import com.fr.colorostools.ref.Reflect
 import com.fr.colorostools.utils.LogUtils
 import io.github.libxposed.api.XposedInterface
@@ -70,6 +77,12 @@ class MainHook : XposedModule() {
         }
         // 熄屏挂机（假熄屏）：挂 PWM#powerPress 汇聚点，见 FakeScreenHook 类文档
         FakeScreenHook.install()
+        // 浮窗（小窗）六功能：数量上限 / 横屏比例 / 贴边尺寸 / 贴边挂机 / 静音 / 白色竖条
+        // + 关闭小窗后从多任务隐藏（记录关闭态在 WM 侧），见各 Hooker 类文档
+        FloatWindowCountHook.install()
+        FloatWindowSizeHook.install()
+        FloatWindowEdgeHangHook.install()
+        FloatWindowRecentsHook.installInSystemServer()
     }
 
     /**
@@ -115,11 +128,21 @@ class MainHook : XposedModule() {
         if (pkg == HookEnv.PKG_LAUNCHER) {
             LogUtils.i(TAG, via, "桌面宿主命中（$pkg），安装长按菜单 Hooker")
             LauncherMenuHook.install()
+            // 隐藏应用四件套（双指张开 / 多任务显示已隐藏 / 彻底隐藏图标）：同一宿主，独立 Hooker
+            LauncherHiddenAppsHook.install()
+            // 浮窗：多任务隐藏小窗应用（多任务卡片过滤在桌面侧，见 FloatWindowRecentsHook）
+            FloatWindowRecentsHook.installInLauncher()
         }
-        // 天气 App 不外跳浏览器（系统天气）：startActivity 级拦截，见 docs/天气App不外跳浏览器-方案分析.md
+        // 锁屏通知区域下移（系统界面）：三条 padding 通道，见 KeyguardNotificationOffsetHook 类文档
+        if (pkg == HookEnv.PKG_SYSTEMUI) {
+            LogUtils.i(TAG, via, "系统界面宿主命中（$pkg），安装锁屏通知偏移 Hooker")
+            KeyguardNotificationOffsetHook.install()
+        }
+        // 天气 App（系统天气）：不外跳浏览器（startActivity 级拦截）+ 净化（隐藏广告/运营卡片）
         if (pkg == HookEnv.PKG_WEATHER) {
-            LogUtils.i(TAG, via, "天气宿主命中（$pkg），安装不外跳浏览器 Hooker")
+            LogUtils.i(TAG, via, "天气宿主命中（$pkg），安装不外跳浏览器 + 净化 Hooker")
             WeatherNoBrowserHook.install()
+            WeatherPurifyHook.install()
         }
         // 小布输入法（模糊增强 + 按键下滑快捷键）：两个功能独立开关，见 OplusKeyboardHook 类文档
         if (pkg == HookEnv.PKG_OPLUS_KEYBOARD) {
