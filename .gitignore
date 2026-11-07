@@ -38,3 +38,7 @@ vcs.xml
 
 # 真机日志 / 取证产物（不入库）
 .logs-received/
+
+# 构建产物与临时构建日志（不入库）
+/apk/
+_build*.txt

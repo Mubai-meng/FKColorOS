@@ -4,7 +4,7 @@
 
 基于 **libxposed API 102**（现代模块，非 XposedBridge 兼容模式），Kotlin + Jetpack Compose 编写。
 
-> 当前版本 **1.3.6（149）** · 仅适配 arm64-v8a · 需要 Android 11+（minSdk 30）· 只在 ColorOS 17 / OnePlus 15 上做过真机验证
+> 当前版本 **1.4.0（155）** · 仅适配 arm64-v8a · 需要 Android 11+（minSdk 30）· 只在 ColorOS 17 / OnePlus 15 上做过真机验证
 
 ---
 
@@ -60,7 +60,7 @@ com.coloros.assistantscreen    智慧建议（负一屏）
 
 每个开关独立，关闭即完全不动宿主行为。宿主侧只做「类存在才安装 hook」的自适应判断，所以系统小版本更新导致某个类消失时，对应 hook 会自己跳过，不会连累其他功能。
 
-功能树里「锁屏」「浮窗」「快应用服务」是独立顶层节点；天气页把净化与不外跳合并为一页三开关。
+功能树里「锁屏」「浮窗」「快应用服务」是独立顶层节点；天气页把净化与不外跳合并为一页三开关，小布输入法页把模糊与下滑快捷键合并为一页。
 
 ### 实现取向
 
@@ -73,13 +73,13 @@ com.coloros.assistantscreen    智慧建议（负一屏）
 ## 安装
 
 1. 设备已 root 并装好 LSPosed
-2. 安装 `FKColorOS_v1.3.6_release.apk`（debug 版为 `FKColorOS_v{versionName}_debug.apk`）
-3. LSPosed 里启用模块，确认作用域已勾选上表七个宿主
+2. 安装 `FKColorOS_v1.4.0_release.apk`（debug 版为 `FKColorOS_v{versionName}_debug.apk`）
+3. LSPosed 里启用模块，确认作用域已勾选上表十个宿主
 4. 重启作用域内应用（改设置类功能建议直接重启设备）
 
 > debug 与 release 签名不同，互相覆盖安装会失败，需先卸载。
 
-装好后打开 App，底部五个页签：首页 / 功能 / 日志 / 设置 / 其他。功能树里每个节点对应上面一个宿主应用，点进去是各自开关。
+装好后打开 App，底部五个页签：首页 / 功能 / 日志 / 设置 / 其他。功能树里每个节点对应上面一个宿主应用，点进去是各自开关。（日志页当前为占位，日志统一投递到 LSPosed 日志页，见下节。）
 
 ---
 
@@ -108,9 +108,11 @@ cd FKColorOS
 
 ## 日志
 
-常规日志异步写入（守护线程 + 有界队列），ERROR 级同步落盘，保证崩溃前不丢关键行。
+日志只有一个去处：**LSPosed 框架日志**（日志页里筛 `FKColorOS` 标签）。模块内不再落盘、不再写 MediaStore，也就没有需要自己清理的历史文件。
 
-ColorOS 17 的分区存储下 `File` API 写 `/sdcard/Download` 必然失败（uid=1000 也不行），所以日志走 **MediaStore**：按当天条目复用、`IS_PENDING` 翻转保证跨进程可见，自动清理 7 天前文件。App 的日志页可直接看，也可分享。
+级别由「设置 → 启用详细日志」控制：关闭时只放行 `ERROR` 且不进入字符串拼接（热路径零开销），开启时输出全部级别。排查问题先打开它，复现后到 LSPosed 日志页取。
+
+注意：App 自身的进程里没有框架日志通道，那里的日志退回 `logcat`。若 LSPosed 日志页里一条模块日志都没有，通常是模块安装记录里的 APK 路径失效导致代码压根没加载——关闭再打开模块开关、必要时重装并重启即可。
 
 ---
 
@@ -121,9 +123,10 @@ app/src/main/java/com/fr/colorostools/
 ├── hook/
 │   ├── MainHook.kt          分发入口（onSystemServerStarting / onPackageLoaded）
 │   ├── HookEnv.kt           进程环境、context 绑定、设置读取
-│   └── hookers/             各功能 Hooker，一个 object 一个功能
+│   ├── hookers/             各功能 Hooker，一个 object 一个功能
+│   └── scopes/              按宿主分包的功能模块（如 opluskeyboard）
 ├── ref/Reflect.kt           反射工具
-├── utils/LogUtils.kt        日志三通道
+├── utils/LogUtils.kt        日志（唯一通道 = LSPosed 框架日志）
 └── ui/compose/              Compose UI，页签 + 功能树 + 作用域门禁
 hidden-api-stub/             隐藏 API 编译桩
 docs/                        各功能的逆向分析与方案评估

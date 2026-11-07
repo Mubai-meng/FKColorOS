@@ -112,7 +112,7 @@ open class MainActivity : AppCompatActivity() {
             return
         }
         // 注：上游这里每次 onResume 都强制写 enable_module_print_logs = BuildConfig.DEBUG，
-        // 属于会把开关「自己写开」的死键（本模块日志总开关用的是 enable_log），已删除。
+        // 属于会把开关「自己写开」的死键（本模块详细日志开关用的是 enable_log），已删除。
         PermissionUtils(this).start()
     }
 

@@ -1078,6 +1078,7 @@
     <string name="log_save_failed">LOG 保存失败！</string>
     <string name="log_data_is_empty">LOG数据为空!</string>
     <string name="log_no_data">无异常数据</string>
+    <string name="log_placeholder">頁面重新規劃中</string>
     <string name="log_filter_title">输入要过滤的内容</string>
     <string name="log_filter_layout_hint">例如包名、内容等</string>
     <!--Tile-->

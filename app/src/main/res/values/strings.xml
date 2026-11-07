@@ -1517,30 +1517,10 @@
     <string name="scope_gate_message">启用该功能需要在 LSPosed 中勾选以下作用域（模块 → ColorOSTools → 作用域）：</string>
     <string name="scope_gate_failed">作用域请求失败</string>
 
-    <!-- 日志页 -->
-    <string name="log_refresh">刷新</string>
-    <string name="log_copy">复制日志</string>
-    <string name="log_empty">暂无日志</string>
-    <string name="log_empty_hint">1. 在设置页开启「启用模块日志」
-2. 模块运行后，日志写入 Download/ColorOSTools/logs/
-3. hook 侧日志写入同一文件；也可查看 LSPosed 日志页</string>
-    <string name="log_copied">日志已复制到剪贴板</string>
-    <string name="log_need_permission">hook 进程（宿主应用）写入的日志文件，本应用读取需要「所有文件访问权限」</string>
-    <string name="log_grant_permission">去授权</string>
-
-    <!-- 日志文件 -->
-    <string name="enable_log">启用模块日志</string>
-    <string name="enable_log_summary">开启时输出完整日志；关闭时仅记录错误</string>
-
-    <!-- 日志级别筛选 -->
-    <string name="log_filter">筛选</string>
-    <string name="log_filter_all">全部</string>
-    <string name="log_filter_error">错误</string>
-    <string name="log_filter_warn">警告及以上</string>
-    <string name="log_filter_info">信息及以上</string>
-    <string name="log_filter_debug">调试及以上</string>
-    <string name="log_share">分享日志</string>
-    <string name="log_share_failed">分享失败</string>
+    <!-- 日志 -->
+    <string name="log_placeholder">Page under planning</string>
+    <string name="enable_log">Enable verbose logging</string>
+    <string name="enable_log_summary">On: every log goes to the LSPosed log page. Off: only errors are logged</string>
 
     <!-- 流体云（宿主 com.oplus.metis） -->
     <string name="fluid_replace_title">替换流体云目标</string>

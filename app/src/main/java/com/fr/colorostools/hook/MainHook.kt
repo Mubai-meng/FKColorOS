@@ -58,9 +58,10 @@ class MainHook : XposedModule() {
     private val installed = AtomicBoolean(false)
 
     override fun onModuleLoaded(param: ModuleLoadedParam) {
-        // 日志接线：常规日志投递到框架日志（LSPosed → 日志页），总开关开启时才落盘到 Download
+        // 日志接线：**唯一通道**是 LSPosed 框架日志（LSPosed → 日志 页面）。
+        // 必须在最早时机接上，否则本方法下面那条 self-intro 也会掉到 logcat 分支。
         LogUtils.frameworkSink = { priority, tag, message -> log(priority, tag, message) }
-        // 读取「启用模块日志」总开关（remote prefs）：关闭时不输出任何常规日志，仅错误进框架日志
+        // 读「启用详细日志」开关（remote prefs）：关闭时只放行 ERROR，其余级别全部丢弃
         LogUtils.enable = runCatching {
             getRemotePreferences(HookEnv.PREFS_SETTINGS)?.getBoolean(HookEnv.KEY_ENABLE_LOG, false)
         }.getOrNull() ?: false
@@ -99,22 +100,31 @@ class MainHook : XposedModule() {
      * 类不存在/方法找不到由各 Hooker 内部按日志跳过，不会影响其它宿主。
      */
     override fun onPackageLoaded(param: PackageLoadedParam) {
-        installForPackage(param.packageName, param.defaultClassLoader, "onPackageLoaded")
+        // applicationInfo 此刻已可用（正是分发时机早于 Application 创建），
+        // 顺手把宿主 APK 真实路径注入 HookEnv —— DexKit 兜底定位必须用它，
+        // 不能用 context().applicationInfo（那是 systemContext ⇒ framework，搜错文件且不报错）
+        installForPackage(
+            param.packageName, param.defaultClassLoader, "onPackageLoaded",
+            param.applicationInfo?.sourceDir,
+        )
     }
 
     /** 兜底分发点：若某版本只触发 `onPackageReady` 也能装上（[installed] 保证不重复） */
     override fun onPackageReady(param: PackageReadyParam) {
-        installForPackage(param.packageName, param.classLoader, "onPackageReady")
+        installForPackage(
+            param.packageName, param.classLoader, "onPackageReady",
+            param.applicationInfo?.sourceDir,
+        )
     }
 
     /** 统一的按包名分发（onPackageLoaded / onPackageReady 两条路径共用） */
-    private fun installForPackage(pkg: String, loader: ClassLoader, via: String) {
+    private fun installForPackage(pkg: String, loader: ClassLoader, via: String, apkPath: String? = null) {
         if (!isMasterEnabled()) return
         if (!installed.compareAndSet(false, true)) {
             LogUtils.i(TAG, via, "已安装过，跳过（pkg=$pkg）")
             return
         }
-        HookEnv.attach(this, loader, pkg)
+        HookEnv.attach(this, loader, pkg, apkPath)
         LogUtils.i(TAG, via, "已注入 $pkg")
         // 流体云两功能（替换流体云目标 / 自定义流体云）：
         // 本机实测单宿主 metis 全覆盖（scope.list 已收敛）；另两个宿主仅兜底 ——

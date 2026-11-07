@@ -1323,30 +1323,12 @@
     <string name="scope_gate_message">开启此功能前，需要先在 LSPosed 中为 ColorOSTools 勾选以下作用域（模块 \u2192 ColorOSTools \u2192 作用域）：</string>
     <string name="scope_gate_failed">作用域请求失败</string>
 
-    <!-- 日志页 -->
-    <string name="log_refresh">刷新</string>
-    <string name="log_copy">复制日志</string>
-    <string name="log_empty">暂无日志
-1. 到「设置」打开「启用模块日志」
-2. 模块运行后自动写入 Download/ColorOSTools/logs/
-3. 本页只显示模块 App 的日志，hook 侧日志请到 LSPosed 的日志页查看</string>
-    <string name="log_copied">日志已复制到剪贴板</string>
-
-    <!-- 日志文件 -->
-    <string name="enable_log">启用模块日志</string>
-    <string name="enable_log_summary">开启后完整输出日志，关闭时仅记录错误</string>
+    <!-- 日志 -->
+    <string name="log_placeholder">页面重新规划中</string>
+    <string name="enable_log">启用详细日志</string>
+    <string name="enable_log_summary">开启后所有日志都输出到 LSPosed 日志页；关闭时只输出错误日志</string>
 
     <!-- 功能：返回手势 -->
-
-    <!-- 日志筛选 -->
-    <string name="log_filter">筛选</string>
-    <string name="log_filter_all">全部</string>
-    <string name="log_filter_error">仅错误</string>
-    <string name="log_filter_warn">警告及以上</string>
-    <string name="log_filter_info">信息及以上</string>
-    <string name="log_filter_debug">调试及以上</string>
-    <string name="log_share">分享日志</string>
-    <string name="log_share_failed">分享失败</string>
     <string name="fluid_replace_title">替换流体云目标</string>
     <string name="fluid_custom_title">自定义流体云</string>
     <string name="fluid_replace_list_title">替换规则列表</string>

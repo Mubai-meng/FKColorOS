@@ -85,10 +85,14 @@ object HookEnv {
     /**
      * 小布输入法（`com.oplus.keyboard`）：模糊增强 + 按键下滑快捷键两个功能宿主。
      *
-     * 逆向实证（宿主 1.8.35.17-mkt，`_ref_kb_jadx`）：
-     * - 模糊总闸 `com.oplus.keyboard.base.util.h#b()`（jadx 显示为 `AbstractC0818h`，因类名大小写冲突）；
-     * - 系统「质感模糊」开关读取 `base.data.e#i()`；
-     * - 键盘视图 `input.view.body.r`（`getSoftKeyboard()` 取按键模型）与按键模型字段 `l`（`List<e>`）；
+     * 逆向实证（宿主 1.8.35.17-mkt `_ref_kb_jadx` + 1.9.18.17-mkt 现场反编译）：
+     * - 模糊总闸 `base.util.h#b()` → **1.9.18.17 迁到 `base.util.f#b()`**（升级后整批重混淆；
+     *   方法名 `b`/`c` 没变，只是类名从 h 换成 f。jadx 因类名大小写冲突显示为 `AbstractC0818h`/`AbstractC0915f`）。
+     *   判定与定位见 [ForceEnableOplusKeyboardBlur.isGateClass]，**不要只按类名挂**；
+     * - 系统「质感模糊」开关读取 `base.data.e#i()` → **1.9.18.17 迁到 `base.data.o#j()`**；
+     * - 键盘视图：旧版 `input.view.body.r`（`getSoftKeyboard()` 取按键模型）；新版 `body.r` 已变成
+     *   `RecyclerView.ItemDecoration`，键盘视图改由「`body` 包内声明 `getSoftKeyboard()` 的 View」
+     *   按形状识别（`OplusKeyboardHook.isKeyboardView` 已走这条路，不依赖固定类名）；
      * - IME 服务 `service.ImeService`（extends `base.service.b` extends `InputMethodService`，
      *   **覆写了 `onUpdateSelection`**，选区块要挂具体类）。
      * 见 `hook/hookers/OplusKeyboardHook.kt` 与 `docs/小布输入法功能移植-方案评估.md`。
@@ -123,7 +127,7 @@ object HookEnv {
     /** 设置页偏好所在 group（与 App 侧 `SettingsPrefs` 一致） */
     const val PREFS_SETTINGS = "SettingsPrefs"
 
-    /** 「启用模块日志」总开关的偏好键（与设置页 `enable_log` 对应） */
+    /** 「启用详细日志」开关的偏好键（与设置页 `enable_log` 对应） */
     const val KEY_ENABLE_LOG = "enable_log"
 
     @Volatile
@@ -143,13 +147,27 @@ object HookEnv {
     @Volatile
     private var appContext: Context? = null
 
+    /**
+     * 宿主 APK 的真实路径（`ApplicationInfo#sourceDir`），由 [MainHook] 在
+     * `onPackageLoaded` / `onPackageReady` 里用 `param.applicationInfo.sourceDir` 直接注入。
+     *
+     * 为什么不能靠 [context] 取：分发点在 `onPackageLoaded`，那时 Application 还没创建，
+     * [context] 只能退回 **systemContext** —— 它的 `applicationInfo.sourceDir` 指向
+     * framework，拿去做 DexKit 就是「搜错文件」，结果恒为空（**无异常、无日志**，
+     * 表现是该功能的 DexKit 兜底路径永远不命中）。2026-11-07 小布输入法 1.9.18.17 实证。
+     */
+    @Volatile
+    private var hostApkPathCache: String? = null
+
     /** 进程内初始化：由 [MainHook] 在回调里调用 */
-    fun attach(module: XposedModule, loader: ClassLoader, pkg: String) {
+    fun attach(module: XposedModule, loader: ClassLoader, pkg: String, apkPath: String? = null) {
         this.module = module
         this.classLoader = loader
         this.currentPkg = pkg
+        // 只在有值时写入：onPackageReady 兜底回调可能不带路径，别把已有值覆盖成 null
+        if (!apkPath.isNullOrEmpty()) hostApkPathCache = apkPath
         settings = runCatching { module.getRemotePreferences(PREFS_SETTINGS) }.getOrNull()
-        // 日志总开关：hook 进程内动态跟随设置页（remote prefs 内存镜像），无需重启即可开关日志
+        // 详细日志开关：hook 进程内动态跟随设置页（remote prefs 内存镜像），无需重启即可开关
         LogUtils.enable = settingBoolean(KEY_ENABLE_LOG, false)
         LogUtils.enableProvider = { settingBoolean(KEY_ENABLE_LOG, false) }
     }
@@ -157,12 +175,36 @@ object HookEnv {
     /** 绑定宿主 Application Context（拿到真实 Context 时调用，优先于反射回落） */
     fun bindAppContext(ctx: Context) {
         appContext = ctx
-        LogUtils.appContext = ctx
+        // Application 建好后顺便把 APK 路径补上（attach 时传的已是同一个值，这里只是兜底）
+        if (hostApkPathCache.isNullOrEmpty()) {
+            hostApkPathCache = runCatching { ctx.applicationInfo.sourceDir }.getOrNull()
+        }
+    }
+
+    /**
+     * 宿主 APK 路径（DexKit 的输入）。
+     *
+     * 取值顺序：`onPackageLoaded` 注入的真实路径 → Application 的 `sourceDir` →
+     * 当前包名的 `PackageManager` 查询。**绝不回退到 [context] 的 `applicationInfo`** ——
+     * 那可能是 systemContext 的 framework 路径，会让 DexKit 搜错文件且不报错。
+     */
+    fun hostApkPath(): String? {
+        hostApkPathCache?.takeIf { it.isNotEmpty() }?.let { return it }
+        appContext?.let { ctx ->
+            runCatching { ctx.applicationInfo.sourceDir }.getOrNull()
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { hostApkPathCache = it; return it }
+        }
+        val pkg = currentPkg ?: return null
+        return runCatching {
+            val pm = context()?.packageManager ?: return@runCatching null
+            pm.getApplicationInfo(pkg, 0)?.sourceDir
+        }.getOrNull()?.takeIf { it.isNotEmpty() }?.also { hostApkPathCache = it }
     }
 
     /**
      * 宿主 Context。优先用已绑定的 Application；否则经 `ActivityThread` 反射取；
-     * 最后才用 system context 救急（不可缓存、不可用于落盘）。
+     * 最后才用 system context 救急（不可缓存）。
      */
     fun context(): Context? {
         appContext?.let { return it }
@@ -171,7 +213,6 @@ object HookEnv {
         val app = Reflect.callByName(cur, "getApplication") as? Context
         if (app != null) {
             appContext = app
-            LogUtils.appContext = app
             return app
         }
         return Reflect.callByName(cur, "getSystemContext") as? Context
