@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fr.colorostools.R
 import com.fr.colorostools.ui.compose.scopes.apps.AndroidSettingsSpec
+import com.fr.colorostools.ui.compose.scopes.apps.FileManagerSpec
 import com.fr.colorostools.ui.compose.scopes.apps.FloatWindowSpec
 import com.fr.colorostools.ui.compose.scopes.apps.LauncherHiddenAppsSpec
 import com.fr.colorostools.ui.compose.scopes.apps.LauncherMenuDetailSpec
@@ -30,6 +31,7 @@ import com.fr.colorostools.ui.compose.scopes.apps.LockScreenSpec
 import com.fr.colorostools.ui.compose.scopes.apps.OplusKeyboardQwertySpec
 import com.fr.colorostools.ui.compose.scopes.apps.OplusKeyboardSpec
 import com.fr.colorostools.ui.compose.scopes.apps.OplusKeyboardT9Spec
+import com.fr.colorostools.ui.compose.scopes.apps.QuickAppServiceSpec
 import com.fr.colorostools.ui.compose.scopes.apps.WeatherSpec
 import com.fr.colorostools.ui.compose.scopes.apps.fluidCloudSpecs
 import com.fr.colorostools.ui.compose.components.PrefIndexItem
@@ -445,6 +447,7 @@ object ScopePageRegistry {
         "oplus_linker",
         "oplus_securityp_permission",
         "oplus_file_manager",
+        "quick_app_service",
         "oplus_engineer_mode",
         "oplus_my_devices",
         "oplus_mcs",
@@ -580,6 +583,11 @@ object ScopePageRegistry {
         "oplus_keyboard" to "oplus_keyboard",
         "oplus_keyboard_qwerty" to "oplus_keyboard_qwerty",
         "oplus_keyboard_t9" to "oplus_keyboard_t9",
+        // 文件管理三功能（宿主 com.coloros.filemanager + system_server）：旧功能树节点已有，
+        // 但缺 pageKey 自映射 —— 搜索索引与 page() 跳转需要它
+        "oplus_file_manager" to "oplus_file_manager",
+        // 快应用服务（无旧 nav id 的新页）：自映射让 page() 跳转与搜索索引都能解析
+        "quick_app_service" to "quick_app_service",
     )
 
     init {
@@ -606,6 +614,12 @@ object ScopePageRegistry {
         register(OplusKeyboardSpec)
         register(OplusKeyboardQwertySpec)
         register(OplusKeyboardT9Spec)
+        // 文件管理三功能（宿主 com.coloros.filemanager + system_server）：
+        // 「隐藏安全访问提示」在文件管理进程；两个「文件选择」在 system_server。
+        // treeOrder 里已有 oplus_file_manager 节点（旧功能树遗留），直接复用，不新增顶层节点
+        register(FileManagerSpec)
+        // 快应用服务（宿主 com.nearme.instant.platform / 系统桌面 / 小布建议）：快递不跳小程序
+        register(QuickAppServiceSpec)
         // 后续按用户逐个指定的 hook 功能在此 register(...)
     }
 }

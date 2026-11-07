@@ -95,6 +95,31 @@ object HookEnv {
      */
     const val PKG_OPLUS_KEYBOARD = "com.oplus.keyboard"
 
+    /**
+     * 文件管理 App（`com.coloros.filemanager`）：「隐藏安全访问提示」的宿主。
+     *
+     * 该功能只改文件管理器自己的选择页卡片可见性，必须在它的进程里挂
+     * （见 `hook/hookers/FileManagerHook.kt`）。另两个「文件选择」开关在 system_server
+     * （`FilePickerHook`），两者同一功能页、不同宿主。
+     */
+    const val PKG_FILE_MANAGER = "com.coloros.filemanager"
+
+    /**
+     * 快应用服务 / 快应用平台（`com.nearme.instant.platform`）：「快递不跳小程序」主宿主。
+     *
+     * 快递卡片的核心逻辑（`hap://app/com.nearme.quickapp.express/...` 改写、hapjs 包探测屏蔽、
+     * 微信 SDK 卡片请求拦截）都跑在这个进程里；桌面与小布建议只是**入口侧**的兜底
+     * （见 `hook/hookers/ExpressCardHook.kt`）。
+     */
+    const val PKG_QUICK_APP = "com.nearme.instant.platform"
+
+    /**
+     * 小布建议 / 速览（`com.coloros.assistantscreen`）：快递卡片入口的第二个宿主。
+     *
+     * 只是「从卡片点进来时把 hap 目的地改写成应用内快递页」，不参与 hapjs 运行时。
+     */
+    const val PKG_ASSISTANT_SCREEN = "com.coloros.assistantscreen"
+
     /** 设置页偏好所在 group（与 App 侧 `SettingsPrefs` 一致） */
     const val PREFS_SETTINGS = "SettingsPrefs"
 

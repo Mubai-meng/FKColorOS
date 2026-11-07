@@ -93,3 +93,20 @@ com.android.systemui
 #     通知磁贴，也在 system_server 侧写。
 # ⚠️ 作用域名必须是 system（LSPosed 显示「系统框架」），写 android 是弹窗进程，本功能不会生效。
 system
+
+# 文件管理（隐藏安全访问提示）：单宿主 com.coloros.filemanager。
+# 该功能只改文件选择页里那张「安全访问提示」卡片的可见性判定（返回 false = 宿主自带的移除分支），
+# 不含任何提权语义；文件访问的 SELinux / FUSE 判定一律不碰。
+# 另两个「文件选择」开关在 system_server（ActivityStarter / OplusDefaultAppPolicyManager），
+# 不在这里加宿主 —— 它们与文件管理器 App 无关。
+com.coloros.filemanager
+
+# 快应用服务（快递不跳小程序）：主宿主 com.nearme.instant.platform。
+# 快递卡片的核心链路都在这个进程里：hap:// 深链改写、hapjs（org.hapjs.*）包探测屏蔽、
+# 搜索框自动填单号并回车、微信 SDK 卡片请求拦截。
+com.nearme.instant.platform
+
+# 快应用服务（快递不跳小程序）：小布建议 / 速览 com.coloros.assistantscreen。
+# 只是卡片入口侧的兜底：从卡片点进来时把目的地改写成应用内快递页，不参与 hapjs 运行时。
+# （第三个入口 com.android.launcher 已在上面声明，同一份 Hooker 覆盖。）
+com.coloros.assistantscreen

@@ -4,7 +4,7 @@
 
 基于 **libxposed API 102**（现代模块，非 XposedBridge 兼容模式），Kotlin + Jetpack Compose 编写。
 
-> 当前版本 **1.3.0（143）** · 仅适配 arm64-v8a · 需要 Android 11+（minSdk 30）· 只在 ColorOS 17 / OnePlus 15 上做过真机验证
+> 当前版本 **1.3.6（149）** · 仅适配 arm64-v8a · 需要 Android 11+（minSdk 30）· 只在 ColorOS 17 / OnePlus 15 上做过真机验证
 
 ---
 
@@ -19,16 +19,19 @@
 | ABI | arm64-v8a |
 | 构建 | AGP 9.4.1 · Kotlin 2.4.21 · JDK 21 · Compose BOM 2026.09.00 |
 
-模块作用域为七个宿主，安装后 LSPosed 里会自动预勾选：
+模块作用域为十个宿主，安装后 LSPosed 里会自动预勾选：
 
 ```
-system                     系统框架（system_server）
-com.oplus.metis            流体云
-com.android.settings       设置
-com.android.launcher       系统桌面
-com.coloros.weather2       天气
-com.oplus.keyboard         小布输入法
-com.android.systemui       系统界面
+system                         系统框架（system_server）
+com.oplus.metis                流体云
+com.android.settings           设置
+com.android.launcher           系统桌面
+com.coloros.weather2           天气
+com.oplus.keyboard             小布输入法
+com.android.systemui           系统界面
+com.coloros.filemanager        文件管理
+com.nearme.instant.platform    快应用服务
+com.coloros.assistantscreen    智慧建议（负一屏）
 ```
 
 > `system` 是 libxposed 里 system_server 的作用域名，LSPosed 界面显示为「系统框架」。
@@ -52,10 +55,12 @@ com.android.systemui       系统界面
 | 浮窗（小窗）增强 | 数量上限 / 关闭后隐藏 / 贴边挂机 / 贴边静音 / 白色竖条 / 横屏比例 / 贴边位置与最大尺寸 | `system` |
 | 小布输入法 · 模糊与下滑 | 强制液态玻璃模糊；按键下滑执行 25 种编辑动作，26 键与九宫格独立配置 | `com.oplus.keyboard` |
 | 锁屏通知下移 | 锁屏通知整体下移 0–40dp，覆盖静止 / 拖拽 / 展开 / 收起四种状态 | `com.android.systemui` |
+| 文件管理 | 隐藏文件选择页的安全访问提示；选文件改走 MT 管理器或原生选择器 | `com.coloros.filemanager` + `system` |
+| 快应用服务 | 快递查询不跳小程序，在快应用内直接完成 | `com.nearme.instant.platform` + `com.android.launcher` + `com.coloros.assistantscreen` |
 
 每个开关独立，关闭即完全不动宿主行为。宿主侧只做「类存在才安装 hook」的自适应判断，所以系统小版本更新导致某个类消失时，对应 hook 会自己跳过，不会连累其他功能。
 
-功能树里「锁屏」「浮窗」是独立顶层节点；天气页把净化与不外跳合并为一页三开关。
+功能树里「锁屏」「浮窗」「快应用服务」是独立顶层节点；天气页把净化与不外跳合并为一页三开关。
 
 ### 实现取向
 
@@ -68,7 +73,7 @@ com.android.systemui       系统界面
 ## 安装
 
 1. 设备已 root 并装好 LSPosed
-2. 安装 `FKColorOS_v1.3.0_release.apk`（debug 版为 `FKColorOS_v{versionName}_debug.apk`）
+2. 安装 `FKColorOS_v1.3.6_release.apk`（debug 版为 `FKColorOS_v{versionName}_debug.apk`）
 3. LSPosed 里启用模块，确认作用域已勾选上表七个宿主
 4. 重启作用域内应用（改设置类功能建议直接重启设备）
 

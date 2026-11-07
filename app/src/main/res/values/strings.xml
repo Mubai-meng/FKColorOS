@@ -1771,4 +1771,19 @@
     <string name="float_window_landscape_ratio_summary">Landscape apps are no longer stretched into a portrait shape</string>
     <string name="float_window_edge_size">Optimize docked position and maximum size</string>
     <string name="float_window_edge_size_summary">Keeps an 8dp margin so a window can reach the screen edge</string>
+
+    <!-- File manager (host com.coloros.filemanager + system_server) -->
+    <string name="file_manager_category_ui">Interface</string>
+    <string name="file_manager_hide_secure_tip">Hide the secure access hint</string>
+    <string name="file_manager_hide_secure_tip_summary">Removes the secure access card from the file picker page</string>
+    <string name="file_manager_category_picker">File picker</string>
+    <string name="file_manager_use_mt">Use MT Manager as the file picker</string>
+    <string name="file_manager_use_mt_summary">Opens file requests in MT Manager; takes effect on the next request</string>
+    <string name="file_manager_use_native">Use the stock file picker</string>
+    <string name="file_manager_use_native_summary">Restores the AOSP Documents UI as the picker; takes effect on the next request</string>
+
+    <!-- Quick app service (host com.nearme.instant.platform / launcher / assistant) -->
+    <string name="quick_app_category_express">Parcel service</string>
+    <string name="quick_app_express_no_mini">Keep parcel tracking inside the quick app</string>
+    <string name="quick_app_express_no_mini_summary">Tracking queries stay in the quick app instead of jumping to mini programs</string>
 </resources>

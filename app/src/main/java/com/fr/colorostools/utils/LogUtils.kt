@@ -21,8 +21,8 @@ import java.util.Locale
  * - 关闭 —— **不输出任何常规日志**，仅把 `ERROR` 级别投递到框架日志（LSPosed → 日志页），便于排障。
  *
  * 三条通道：
- * 1. **logcat** —— `android.util.Log`，tag 固定为 [globalTag]（`ColorOSTools`），
- *    用 `adb logcat -s ColorOSTools` 或任何日志应用查看。
+ * 1. **logcat** —— `android.util.Log`，tag 固定为 [globalTag]（`FKColorOS`，与 App 名一致），
+ *    用 `adb logcat -s FKColorOS` 或任何日志应用查看。
  * 2. **框架日志** —— 由 hook 进程的模块入口注入 [frameworkSink]（即 `XposedInterface.log`），
  *    输出会出现在 **LSPosed → 日志** 页面。App 进程未注入，恒为 null。
  * 3. **文件** —— 经 **MediaStore.Downloads** 写入
@@ -34,7 +34,15 @@ import java.util.Locale
 @Suppress("MemberVisibilityCanBePrivate")
 @Obfuscate
 object LogUtils {
-    const val globalTag = "ColorOSTools"
+    /**
+     * 日志 tag：logcat 与 LSPosed「日志」页共用的标题。
+     *
+     * 取值 = App 名（`res/values/strings.xml` 的 `app_name`），这样 LSPosed 日志页里
+     * 标题与应用名一致，不会出现「图标是 FKColorOS、标题却是 ColorOSTools」的错位。
+     * ⚠️ 改这里只影响**显示**；日志文件目录仍是 `Download/ColorOSTools/logs/`
+     * （`LogPage` 按该路径检索、历史日志可继续读取）。
+     */
+    const val globalTag = "FKColorOS"
 
     /**
      * 模块日志总开关（设置页「启用模块日志」）。

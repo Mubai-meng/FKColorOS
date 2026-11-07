@@ -3,7 +3,10 @@ package com.fr.colorostools.hook
 import android.annotation.SuppressLint
 import android.util.Log
 import com.fr.colorostools.hook.hookers.AccessibilityEnhanceHook
+import com.fr.colorostools.hook.hookers.ExpressCardHook
 import com.fr.colorostools.hook.hookers.FakeScreenHook
+import com.fr.colorostools.hook.hookers.FileManagerHook
+import com.fr.colorostools.hook.hookers.FilePickerHook
 import com.fr.colorostools.hook.hookers.FluidCloudReplaceHook
 import com.fr.colorostools.hook.hookers.FluidCloudSeedlingHook
 import com.fr.colorostools.hook.hookers.FloatWindowCountHook
@@ -83,6 +86,9 @@ class MainHook : XposedModule() {
         FloatWindowSizeHook.install()
         FloatWindowEdgeHangHook.install()
         FloatWindowRecentsHook.installInSystemServer()
+        // 文件选择器路由（文件管理页的「使用 MT 管理器为选择器」/「使用原生文件选择器」）：
+        // 裁决点在 ActivityStarter 与 OplusDefaultAppPolicyManager，只能在 system_server 改
+        FilePickerHook.install()
     }
 
     /**
@@ -149,6 +155,16 @@ class MainHook : XposedModule() {
             LogUtils.i(TAG, via, "小布输入法宿主命中（$pkg），安装键盘 Hooker")
             OplusKeyboardHook.install()
         }
+        // 文件管理器 App：隐藏安全访问提示（只改选择页那张卡片，不动任何权限判定）
+        if (pkg == HookEnv.PKG_FILE_MANAGER) {
+            LogUtils.i(TAG, via, "文件管理宿主命中（$pkg），安装隐藏安全访问提示 Hooker")
+            FileManagerHook.install()
+        }
+        // 快递不跳小程序：三个入口宿主各管一段（平台进程是主战场，桌面与小布只改写目的地）
+        if (pkg in ExpressCardHook.packages) {
+            LogUtils.i(TAG, via, "快递卡片宿主命中（$pkg），安装 Express Hooker")
+            ExpressCardHook.install(pkg)
+        }
         bindAppContextLater(loader)
     }
 
@@ -180,7 +196,13 @@ class MainHook : XposedModule() {
     }
 
     companion object {
-        const val TAG = "ColorOSTools"
+        /**
+         * 日志子标签（出现在每条日志正文前，如 `FKColorOS: onModuleLoaded -> ...`）。
+         *
+         * 与 [LogUtils.globalTag] 保持一致，都取 App 名，避免 LSPosed 日志页里
+         * 「标题是 FKColorOS、正文却写 ColorOSTools」的错位。
+         */
+        const val TAG = "FKColorOS"
 
         /**
          * 主开关：存在 /sdcard/disable_colorostools 时整体停用（便于排障时一键关闭）。

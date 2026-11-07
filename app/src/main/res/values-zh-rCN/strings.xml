@@ -1578,4 +1578,19 @@
     <string name="float_window_landscape_ratio_summary">横屏应用不再被拉成竖屏比例</string>
     <string name="float_window_edge_size">优化小窗贴边位置及最大尺寸</string>
     <string name="float_window_edge_size_summary">只留 8dp 边距，小窗可以贴到屏幕边缘</string>
+
+    <!-- 文件管理（宿主 com.coloros.filemanager + system_server） -->
+    <string name="file_manager_category_ui">界面优化</string>
+    <string name="file_manager_hide_secure_tip">隐藏安全访问提示</string>
+    <string name="file_manager_hide_secure_tip_summary">隐藏文件选择页的安全访问提示</string>
+    <string name="file_manager_category_picker">文件选择</string>
+    <string name="file_manager_use_mt">使用 MT 管理器为选择器</string>
+    <string name="file_manager_use_mt_summary">使用 MT 管理器选择文件，下一次选文件请求生效</string>
+    <string name="file_manager_use_native">使用原生文件选择器</string>
+    <string name="file_manager_use_native_summary">改用系统原生文件选择器，下一次选文件请求生效</string>
+
+    <!-- 快应用服务（宿主 com.nearme.instant.platform / 系统桌面 / 小布建议） -->
+    <string name="quick_app_category_express">快递服务</string>
+    <string name="quick_app_express_no_mini">快递不跳小程序</string>
+    <string name="quick_app_express_no_mini_summary">在快应用内直接查询快递，避免跳转其他小程序</string>
 </resources>

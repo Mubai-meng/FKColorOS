@@ -23,7 +23,7 @@ class MyApplication : Application() {
         // 启动即落一行：开开关后立刻打开日志页也能看到内容（否则要等框架异步绑定完才有第一行）
         LogUtils.i(
             "App", "onCreate",
-            "ColorOSTools ${BuildConfig.VERSION_NAME}(${BuildConfig.VERSION_CODE}) 启动，日志总开关=${LogUtils.enable}",
+            "FKColorOS ${BuildConfig.VERSION_NAME}(${BuildConfig.VERSION_CODE}) 启动，日志总开关=${LogUtils.enable}",
         )
         XposedServiceBridge.init(this)
         // 预测性返回手势：把偏好同步到 ApplicationInfo（对齐 KernelSU 启动期行为，best-effort）
