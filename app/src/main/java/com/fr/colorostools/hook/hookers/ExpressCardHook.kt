@@ -180,6 +180,12 @@ internal object ExpressCardHook {
      * 拦截 `ContextWrapper` / `Activity` 的 `startActivity(ForResult)`。
      *
      * 两个类都挂：`Activity` 覆写了 `ContextWrapper` 的同名方法，只挂一层会漏掉另一层调用点。
+     *
+     * ⚠️ 改写时必须**保留原参数个数**（见 [proceedReplacingFirst]）：`Activity` 里同时存在
+     * `startActivity(Intent)` / `startActivity(Intent, Bundle)` / `startActivityForResult(Intent, int)` /
+     * `startActivityForResult(Intent, int, Bundle)` 四个重载。只回传 1 个参数会让 libxposed 在 2/3 参
+     * 重载上直接抛 `IllegalArgumentException: Wrong number of arguments; expected 2, got 1`
+     * （桌面 `IntegrationRemoteAnimManager` 走的就是 2 参版本，v1.4.0 实测必崩）。
      */
     private fun hookActivityStarts() {
         for (className in listOf(ContextWrapper::class.java.name, Activity::class.java.name)) {
@@ -192,7 +198,7 @@ internal object ExpressCardHook {
                 if (!enabled()) return@installMethods chain.proceed()
                 val intent = chain.args.firstOrNull() as? Intent ?: return@installMethods chain.proceed()
                 val replacement = rewrite(intent) ?: return@installMethods chain.proceed()
-                chain.proceed(arrayOf<Any?>(replacement))
+                chain.proceedReplacingFirst(replacement)
             }
         }
     }
@@ -244,7 +250,7 @@ internal object ExpressCardHook {
             query.receive(intent?.dataString, SystemClock.uptimeMillis())
             if (intent != null) activity.intent = intent
             if (chain.executable.name == "onNewIntent" && intent != null) {
-                chain.proceed(arrayOf<Any?>(intent))
+                chain.proceedReplacingFirst(intent)
             } else {
                 chain.proceed()
             }
@@ -571,6 +577,19 @@ internal object ExpressCardHook {
     }.getOrDefault(emptyMap())
 
     // ------------------------------------------------------------ 挂钩子
+
+    /**
+     * 只替换参数 0，其余参数原样透传。
+     *
+     * `Chain#getArgs()` 返回的是**不可变** List，所以要复制成数组再改；而 `proceed(Object[])`
+     * 的参数个数必须与目标方法完全一致 —— 少传就等于换了个签名，libxposed 直接抛
+     * `IllegalArgumentException: Wrong number of arguments`。凡是「改第一个参数」的钩子都走这里。
+     */
+    private fun XposedInterface.Chain.proceedReplacingFirst(value: Any?): Any? {
+        val args = args.toTypedArray()
+        args[0] = value
+        return proceed(args)
+    }
 
     /**
      * 在宿主类 [className] 的全部 `declaredMethods` 里按 [matches] 挂钩子。
