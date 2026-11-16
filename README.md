@@ -4,7 +4,7 @@
 
 基于 **libxposed API 102**（现代模块，非 XposedBridge 兼容模式），Kotlin + Jetpack Compose 编写。
 
-> 当前版本 **1.4.0（155）** · 仅适配 arm64-v8a · 需要 Android 11+（minSdk 30）· 只在 ColorOS 17 / OnePlus 15 上做过真机验证
+> 当前版本 **1.5.0（167）** · 仅适配 arm64-v8a · 需要 Android 11+（minSdk 30）· 只在 ColorOS 17 / OnePlus 15 上做过真机验证
 
 ---
 
@@ -52,6 +52,7 @@ com.coloros.assistantscreen    智慧建议（负一屏）
 | 天气隐藏广告 | 隐藏运营卡片推广位与冷启动开屏广告，保留天气预警标签 | `com.coloros.weather2` |
 | 天气隐藏全部运营卡片 | 首页运营卡片区整块不显示 | `com.coloros.weather2` |
 | 熄屏挂机 | 电源键触发假熄屏，应用继续运行，再按一次即可回来；不写系统设置、不留后台服务 | `system` |
+| 自动亮度暗环境提升 | 环境光低于上限时适度提高屏幕亮度：提升强度 / 低亮度补偿 / 生效上限 / 结果上限四个参数可调，≥上限完全原生行为 | `system` |
 | 浮窗（小窗）增强 | 数量上限 / 关闭后隐藏 / 贴边挂机 / 贴边静音 / 白色竖条 / 横屏比例 / 贴边位置与最大尺寸 | `system` |
 | 小布输入法 · 模糊与下滑 | 强制液态玻璃模糊；按键下滑执行 25 种编辑动作，26 键与九宫格独立配置 | `com.oplus.keyboard` |
 | 锁屏通知下移 | 锁屏通知整体下移 0–40dp，覆盖静止 / 拖拽 / 展开 / 收起四种状态 | `com.android.systemui` |
@@ -60,7 +61,7 @@ com.coloros.assistantscreen    智慧建议（负一屏）
 
 每个开关独立，关闭即完全不动宿主行为。宿主侧只做「类存在才安装 hook」的自适应判断，所以系统小版本更新导致某个类消失时，对应 hook 会自己跳过，不会连累其他功能。
 
-功能树里「锁屏」「浮窗」「快应用服务」是独立顶层节点；天气页把净化与不外跳合并为一页三开关，小布输入法页把模糊与下滑快捷键合并为一页。
+功能树里「系统框架」「锁屏」「浮窗」「快应用服务」是独立顶层节点；天气页把净化与不外跳合并为一页三开关，小布输入法页把模糊与下滑快捷键合并为一页。
 
 ### 实现取向
 
@@ -73,7 +74,7 @@ com.coloros.assistantscreen    智慧建议（负一屏）
 ## 安装
 
 1. 设备已 root 并装好 LSPosed
-2. 安装 `FKColorOS_v1.4.0_release.apk`（debug 版为 `FKColorOS_v{versionName}_debug.apk`）
+2. 安装 `FKColorOS_v1.5.0_release.apk`（debug 版为 `FKColorOS_v{versionName}_debug.apk`）
 3. LSPosed 里启用模块，确认作用域已勾选上表十个宿主
 4. 重启作用域内应用（改设置类功能建议直接重启设备）
 
