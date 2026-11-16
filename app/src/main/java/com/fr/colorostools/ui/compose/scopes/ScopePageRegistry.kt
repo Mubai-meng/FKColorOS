@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fr.colorostools.R
 import com.fr.colorostools.ui.compose.scopes.apps.AndroidSettingsSpec
+import com.fr.colorostools.ui.compose.scopes.apps.SystemFrameworkSpec
 import com.fr.colorostools.ui.compose.scopes.apps.FileManagerSpec
 import com.fr.colorostools.ui.compose.scopes.apps.FloatWindowSpec
 import com.fr.colorostools.ui.compose.scopes.apps.LauncherHiddenAppsSpec
@@ -410,6 +411,7 @@ object ScopePageRegistry {
         "aod",
         "lock_screen",
         "float_window",
+        "system_framework",
         "application",
         "miscellaneous",
         "oplus_screenshot",
@@ -476,6 +478,8 @@ object ScopePageRegistry {
         "lock_screen" to R.string.LockScreen,
         // 浮窗是跨进程分类节点（system_server 六项 + 系统桌面一项），没有单一目标 App 名可借用
         "float_window" to R.string.FloatWindow,
+        // 系统框架：system_server 分类顶层节点（2026-11-16 用户指定新增），同浮窗一样无 App 名可借
+        "system_framework" to R.string.SystemFramework,
         "application" to R.string.Application,
         "miscellaneous" to R.string.Miscellaneous,
         // 排序页不是功能树 root，登记标题只为顶栏兜底标题（经 page() 进入时用入口行标题）
@@ -606,6 +610,8 @@ object ScopePageRegistry {
         register(LockScreenSpec)
         // 浮窗八功能：system_server + 系统桌面两宿主（float_window 顶层节点，treeOrder 已含此键）
         register(FloatWindowSpec)
+        // 系统框架：system_server 分类顶层节点（system_framework，treeOrder 已含此键）
+        register(SystemFrameworkSpec)
         // 天气（宿主 com.coloros.weather2）：隐藏广告 / 隐藏全部运营卡片 / 详情页应用内打开
         register(WeatherSpec)
         // 小布输入法：宿主 com.oplus.keyboard（模糊增强 + 按键下滑快捷键）

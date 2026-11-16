@@ -1766,4 +1766,20 @@
     <string name="quick_app_category_express">Parcel service</string>
     <string name="quick_app_express_no_mini">Keep parcel tracking inside the quick app</string>
     <string name="quick_app_express_no_mini_summary">Tracking queries stay in the quick app instead of jumping to mini programs</string>
+
+    <!-- System framework (host system_server) -->
+    <string name="SystemFramework">System framework</string>
+    <string name="sysfw_section_autobr">Auto brightness in dark environments</string>
+    <string name="sysfw_autobr_enable">Boost brightness in dark environments</string>
+    <string name="sysfw_autobr_enable_summary">Raise auto brightness moderately when ambient light is below the limit; applies immediately, no restart needed</string>
+    <string name="sysfw_autobr_factor">Boost factor</string>
+    <string name="sysfw_autobr_factor_summary">Scales the estimated ambient lux below the limit (160% = 1.6x)</string>
+    <string name="sysfw_autobr_offset">Low-light offset (lux)</string>
+    <string name="sysfw_autobr_offset_summary">Added on top of the scaled lux to lift the darkest scenes</string>
+    <string name="sysfw_autobr_luxmax">Ambient limit (lux)</string>
+    <string name="sysfw_autobr_luxmax_summary">Boost applies only below this ambient lux level</string>
+    <string name="sysfw_autobr_maxgain">Result cap (% of limit)</string>
+    <string name="sysfw_autobr_maxgain_summary">Boosted lux is clamped to this ratio of the ambient limit to avoid curve jumps</string>
+    <string name="sysfw_autobr_percent_value">%d%%</string>
+    <string name="sysfw_autobr_lux_value">%d lux</string>
 </resources>

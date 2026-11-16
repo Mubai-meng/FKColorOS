@@ -24,7 +24,7 @@ import java.lang.reflect.Method
  * | 功能 | 钩子 | 备注 |
  * |---|---|---|
  * | 桌面双指张开打开隐藏应用 | `DragLayer#dispatchTouchEvent(MotionEvent)` | ScaleGestureDetector 判双指外张 |
- * | 多任务显示已隐藏应用 | `qp.c#i(Task)Z` | 本机已无 `OplusPrivacyManager#isHiddenPkg` |
+ * | 多任务显示已隐藏应用 | 隐私判定类唯一的 `(Task)Z`（17.5.4=`zq7#f`，17.3.12=`qp.c#i`） | 见 `CLS_PRIVACY_HOLDERS` 注释 |
  * | 彻底隐藏所选应用图标 | `LauncherApps#getActivityList` + `OplusAppFilter#shouldShowApp` | 双通道，缺一漏图标 |
  * | 彻底隐藏应用列表 | —— | 纯 UI 页（应用多选），本 hooker 只提供名单读取 |
  *
@@ -97,7 +97,21 @@ internal object LauncherHiddenAppsHook {
      * `OplusRecentsViewImpl#shouldSetAlphaTo1` / `OplusTaskThumbnailViewImpl#checkAndUpdatePrivacy`
      * 直接调用（`method_calls` 实证）。
      */
-    private const val CLS_PRIVACY_HOLDER = "qp.c"
+    /**
+     * 多任务判定类候选（混淆名随 OTA 漂移，按新到旧排列）。
+     *
+     * - 17.5.4 = **`zq7`**（日志 tag `OplusSpecialListHelper`）：单例 `zq7.A`，
+     *   `f(Task)Z`（10 opcode，内部转调 `e(ComponentName,String)`）是多任务**渲染路径**
+     *   的隐私判定 —— 调用方 `views/a#N0/Y/I0/I1/J0/K0`（RecentsView）、OverviewState、
+     *   TaskViewTouchController、DockView、gesture/c#V1 等（method_calls 实证）。
+     *   手势保护路径已分离为 `d(String,String,String)Z`（由 `gesture/c#K1` 调用），
+     *   签名天然不同，不会误挂。
+     * - 17.3.12 = `qp.c#i(Task)Z`（旧固件兜底）。
+     *
+     * ⚠️ 两者都按「该类里**唯一的** (Task)Z 方法」定位，不看名字 —— 名字随版本漂移，
+     *    形状唯一性才是安全约束（zq7 里只有 f、qp.c 里只有 i 接收 Task）。
+     */
+    private val CLS_PRIVACY_HOLDERS = listOf("zq7", "qp.c")
 
     /** 名单缓存 TTL：桌面一次装载的连续调用走缓存，改名单后 1s 内一定读到新值 */
     private const val HIDDEN_CACHE_TTL_MS = 1000L
@@ -342,32 +356,38 @@ internal object LauncherHiddenAppsHook {
     // ==================================================================
 
     /**
-     * hook `qp.c#i(Task)Z`（本机替身，见类文档 §1）。
+     * hook 隐私判定 `(Task)Z`（本机替身见 [CLS_PRIVACY_HOLDERS] 注释）。
      *
-     * 只在调用方来自 quickstep 渲染路径时放开；**从桌面点击启动隐藏应用那条路
-     * （`qp.c#g`）不动** —— 那是系统自己的隐私保护，放开会导致隐藏应用被截屏/留在最近任务。
+     * 只在调用方来自 quickstep / launcher3 渲染路径时放开；**手势保护那条路
+     * （旧 qp.c#g / 新 zq7#d，均按 String 定位）签名不同不会被挂** ——
+     * 那是系统自己的隐私保护，放开会导致隐藏应用被截屏/留在最近任务。
      */
     private fun hookRecentsShowHidden() {
-        val cls = Reflect.classOrNull(HookEnv.classLoader, CLS_PRIVACY_HOLDER) ?: run {
-            LogUtils.w(TAG, "install", "$CLS_PRIVACY_HOLDER 不存在（多任务显示已隐藏跳过）")
-            return
-        }
         val taskCls = Reflect.classOrNull(
             HookEnv.classLoader, "com.android.systemui.shared.recents.model.Task",
         ) ?: run {
-            // ⚠️ Task 解析不到时必须放弃，**不能**把 null 传给 findMethodByShape：
-            //    null 在那里表示「该位置任意类型」，会命中 qp.c 里同名同返回值的无关重载
-            //    （例如 `i` 只有一个，但 `g/h` 都有 (int,String) 版；一旦签名漂移就会挂错方法）。
+            // ⚠️ Task 解析不到时必须放弃，**不能**把 null 传给形状匹配：
+            //    null 表示「该位置任意类型」，会命中同名同返回值的无关重载。
             LogUtils.w(TAG, "install", "recents Task 类不存在，跳过多任务显示已隐藏")
             return
         }
-        // 按名字 + 精确形状取（混淆名在 OTA 后可能被重排，形状比名字更稳）
-        val m = Reflect.findMethodByShape(
-            cls, "i", listOf(taskCls), Boolean::class.javaPrimitiveType,
-        ) ?: run {
-            LogUtils.w(TAG, "install", "qp.c#i(Task)Z 不存在，跳过多任务显示已隐藏")
+        // 候选类逐个试：取「该类里唯一的 (Task)Z 方法」（不看名字，抗混淆漂移）。
+        // 多于一个说明形状不足以定位，宁可不装也不乱改。
+        val target = CLS_PRIVACY_HOLDERS.firstNotNullOfOrNull { name ->
+            val cls = Reflect.classOrNull(HookEnv.classLoader, name) ?: return@firstNotNullOfOrNull null
+            val candidates = cls.declaredMethods.filter {
+                it.parameterCount == 1 && it.parameterTypes[0] == taskCls &&
+                    it.returnType == Boolean::class.javaPrimitiveType
+            }
+            if (candidates.size == 1) cls to candidates[0] else null
+        } ?: run {
+            LogUtils.w(
+                TAG, "install",
+                "${CLS_PRIVACY_HOLDERS.joinToString()} 都没有唯一的 (Task)Z 判定，跳过多任务显示已隐藏",
+            )
             return
         }
+        val (holderCls, m) = target
         runCatching {
             HookEnv.module.hook(m).intercept(object : XposedInterface.Hooker {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
@@ -383,7 +403,7 @@ internal object LauncherHiddenAppsHook {
                     return false
                 }
             })
-            LogUtils.i(TAG, "install", "已挂 qp.c#i(Task)（多任务显示已隐藏）")
+            LogUtils.i(TAG, "install", "已挂 ${holderCls.name}#${m.name}(Task)（多任务显示已隐藏）")
         }.onFailure {
             LogUtils.w(TAG, "install", "挂多任务显示已隐藏失败：${it.message}")
         }
@@ -392,16 +412,43 @@ internal object LauncherHiddenAppsHook {
     private var recentsBypassLogged = 0
 
     /**
-     * 调用栈里是否有 quickstep 的**渲染/手势**类。
+     * 调用栈里是否有多任务**渲染/手势/视图**链的类。
+     *
+     * 17.5.4 判定类（zq7）的调用方分布在 `com.android.quickstep.*`（RecentsView）、
+     * `com.oplus.quickstep.*`（手势 / Dock 侧栏）与 `launcher3.uioverrides.*`
+     * （OverviewState / TaskViewTouchController）三处，所以按「类名含 quickstep
+     * 或 uioverrides」匹配，不再限定 com.android 前缀。
      *
      * 排除含 `lock` 的类：`com.oplus.quickstep.applock.*` 是应用锁，与隐藏应用无关，
      * 放开它会把加锁应用也显示出来（上游同款过滤）。
+     *
+     * ⚠️ `Throwable().stackTrace` 是**热路径大杀器**：每次调用 = native 栈回溯 +
+     * StackTraceElement[] 分配（几十个元素）+ 逐帧去混淆名。滑动多任务时判定类
+     * 会被每个任务卡每帧调多次，不设门控会造成 jank 与 GC 压力。
+     * 300ms TTL 与触摸门控/锁屏偏移同款：渲染周期内栈形态一致，共享一次判定；
+     * 该方法的所有调用方本就是渲染/手势链，缓存误判风险为零。
      */
-    private fun callerInQuickstepRenderPath(): Boolean =
-        Throwable().stackTrace.any { e ->
+    private const val RENDER_PATH_CACHE_TTL_MS = 300L
+
+    @Volatile
+    private var renderPathCache = false
+
+    @Volatile
+    private var renderPathCacheAt = 0L
+
+    private fun callerInQuickstepRenderPath(): Boolean {
+        val now = SystemClock.uptimeMillis()
+        if (now - renderPathCacheAt < RENDER_PATH_CACHE_TTL_MS) return renderPathCache
+        val hit = Throwable().stackTrace.any { e ->
             val cn = e.className ?: return@any false
-            cn.startsWith("com.android.quickstep") && !cn.lowercase().contains("lock")
+            val lower = cn.lowercase()
+            (lower.contains("quickstep") || lower.contains("uioverrides")) &&
+                !lower.contains("lock")
         }
+        renderPathCache = hit
+        renderPathCacheAt = now
+        return hit
+    }
 
     private fun recentsShowHiddenEnabled(): Boolean =
         HookEnv.settingBoolean(LauncherHiddenAppsConfig.KEY_RECENTS_SHOW_HIDDEN, false)

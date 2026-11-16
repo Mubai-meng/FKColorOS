@@ -149,6 +149,19 @@ internal object LauncherMenuHook {
     )
 
     /**
+     * 菜单条目类名归一化：取「最内层简单名」。
+     *
+     * 17.3.12 的 R8 保留嵌套类元数据，`getSimpleName()` 返回 `PrivacyLock`；
+     * 17.5.4 的 R8 **剥掉了 InnerClasses/EnclosingClass 元数据**，`getSimpleName()`
+     * 退化为「外层$内层」（如 `OplusBaseSystemShortcut$PrivacyLock`）—— 直接拿
+     * simpleName 精确匹配会全部落空（v1.4.7 diag 日志实证：flags 同步正常但
+     * 按项隐藏零命中、折叠段判据 `DeepShortcutEntry` 也匹配不上）。
+     * 归一化 = 取全名去包名后再按 `$` 取尾段，两个固件版本都得到最内层简单名。
+     */
+    private val Class<*>.menuSimpleName: String
+        get() = name.substringAfterLast('.').substringAfterLast('$')
+
+    /**
      * 折叠入口的文案（收起态一级行 + 二级面板头部）。
      *
      * 取 4 字是与原生「更多功能」对齐的**实测下限**：v1.0.25 用 6 字「应用快捷方式」
@@ -171,6 +184,9 @@ internal object LauncherMenuHook {
     /** 桌面「更多功能」那份 `SystemShortcut`（折叠行图标来源；钩子 A 改写前留存） */
     @Volatile
     private var moreFunctionsShortcut: Any? = null
+
+    /** 取证日志计数：每进程只记前 12 次弹窗快照 */
+    private var diagLogged = 0
 
     // ------------------------------------------------- 原生二级面板的折叠上下文
     //
@@ -296,32 +312,58 @@ internal object LauncherMenuHook {
 
         val sysIn = Reflect.callByName(data, "getSystemShortcutsIn") as? MutableList<Any?>
 
+        // 取证：每个进程只记前 12 次弹窗的完整快照（配置 + 一级项类名）。
+        // 按项隐藏「开着却没生效」类问题，靠这份日志对账到底是哪一环断了：
+        // flags 全 false ⇒ App→hook 偏好同步问题；sysIn=null ⇒ getter 失效；
+        // 类名不匹配 ⇒ 17.5.4 项类漂移。
+        if (diagLogged < 12) {
+            diagLogged++
+            LogUtils.i(
+                TAG, "diag",
+                "#$diagLogged enabled=${c.enabled} flat=${c.flat} fold=${c.fold} " +
+                    "hideDeep=${c.hideDeep} flags=[${c.hideFlags.joinToString { if (it) "1" else "0" }}] " +
+                    "sysIn=${if (sysIn == null) "null" else sysIn.size} " +
+                    "items=[${sysIn?.joinToString("/") { it?.javaClass?.menuSimpleName ?: "null" }}]",
+            )
+        }
+
         // ① 留一份「更多功能」实例（折叠行图标 + 平铺的数据源）。
         //    必须在任何改写之前抓 —— 平铺会把 MordFunctions 从列表里摘掉。
         //    每次弹窗都刷新（不同图标的 itemInfo 不同；但 icon resId 是构造常量，跨实例一致）。
         if (sysIn != null) {
             for (e in sysIn) {
-                if (e != null && e.javaClass.simpleName == SIMPLE_MORE) {
+                if (e != null && e.javaClass.menuSimpleName == SIMPLE_MORE) {
                     moreFunctionsShortcut = e
                     break
                 }
             }
         }
 
-        // ② 按项隐藏：一级删实例 + 「更多」双列表同步删 + 堆叠组删
+        // ② 按项隐藏：一级删实例 + 「更多」双列表同步删 + 堆叠组删。
+        //    日志逐项记**类名**而非数量 —— 按项开关「生效错位」类问题必须靠它对账
+        //    （类名与开关一一对应，见 ITEM_CLASS_SIMPLE 注释）。
         if (c.hideAny) {
             if (sysIn != null) {
-                val before = sysIn.size
-                sysIn.removeAll { e -> e != null && itemHideIndex(e.javaClass.simpleName, c.hideFlags) >= 0 }
-                val removed = before - sysIn.size
-                if (removed > 0) LogUtils.i(TAG, "rewrite", "按项隐藏：一级移除 $removed 项")
+                val removedNames = ArrayList<String>(4)
+                sysIn.removeAll { e ->
+                    val idx = e?.let { itemHideIndex(it.javaClass.menuSimpleName, c.hideFlags) } ?: -1
+                    if (idx >= 0) {
+                        removedNames.add(ITEM_CLASS_SIMPLE[idx])
+                        true
+                    } else {
+                        false
+                    }
+                }
+                if (removedNames.isNotEmpty()) {
+                    LogUtils.i(TAG, "rewrite", "按项隐藏：一级移除 [${removedNames.joinToString("/")}]")
+                }
             }
             moreFunctionsShortcut?.let { more ->
                 val n = hideMoreKids(more, c.hideFlags)
                 if (n > 0) LogUtils.i(TAG, "rewrite", "按项隐藏：「更多功能」子菜单移除 $n 项")
             }
             (Reflect.callByName(data, "getShortcutsInStackGroup") as? MutableList<Any?>)
-                ?.removeAll { e -> e != null && itemHideIndex(e.javaClass.simpleName, c.hideFlags) >= 0 }
+                ?.removeAll { e -> e != null && itemHideIndex(e.javaClass.menuSimpleName, c.hideFlags) >= 0 }
         }
 
         // ③ 平铺二级菜单：把「更多功能」摊开成它自己的孩子
@@ -362,14 +404,17 @@ internal object LauncherMenuHook {
         val kids = Reflect.getField(more, "mMoreSystemShortcutList") as? MutableList<Any?> ?: return -1
         val items = Reflect.getField(more, "popupListItems") as? MutableList<Any?> ?: return -1
         if (kids.size != items.size) {
-            LogUtils.w(TAG, "hideMoreKids", "子列表 size 不一致（kids=${kids.size}, items=${items.size}），跳过「更多」按项隐藏")
+            LogUtils.w(
+                TAG, "hideMoreKids",
+                "子列表 size 不一致（kids=${kids.size}, items=${kids.joinToString { it?.javaClass?.menuSimpleName ?: "null" }}），跳过「更多」按项隐藏",
+            )
             return -1
         }
         var removed = 0
         // 从后往前删，保下标对应
         for (i in kids.indices.reversed()) {
             val k = kids[i] ?: continue
-            if (itemHideIndex(k.javaClass.simpleName, flags) >= 0) {
+            if (itemHideIndex(k.javaClass.menuSimpleName, flags) >= 0) {
                 kids.removeAt(i)
                 items.removeAt(i)
                 removed++
@@ -403,7 +448,7 @@ internal object LauncherMenuHook {
         // liveLevel1 必须在删除/平铺**之前**的一级列表上算
         val liveLevel1 = HashSet<String>(sysIn.size * 2)
         for (e in sysIn) {
-            if (e == null || e.javaClass.simpleName == SIMPLE_MORE) continue
+            if (e == null || e.javaClass.menuSimpleName == SIMPLE_MORE) continue
             if (Reflect.callByName(e, "isEnabled") == true) {
                 liveLevel1.add(e.javaClass.name)
             }
@@ -414,7 +459,7 @@ internal object LauncherMenuHook {
         var flattened = 0
         for (e in sysIn) {
             if (e == null) continue
-            if (e.javaClass.simpleName != SIMPLE_MORE) {
+            if (e.javaClass.menuSimpleName != SIMPLE_MORE) {
                 rebuilt.add(e)
                 continue
             }
@@ -429,7 +474,7 @@ internal object LauncherMenuHook {
                 val cn = k.javaClass.name
                 // 一级已有「同类且可用」的项 → 摊开这份是重复；摊开列表内部也顺带去重
                 if (liveLevel1.contains(cn) || !addedKid.add(cn)) {
-                    deduped.add(k.javaClass.simpleName)
+                    deduped.add(k.javaClass.menuSimpleName)
                     continue
                 }
                 rebuilt.add(k)
@@ -516,7 +561,7 @@ internal object LauncherMenuHook {
 
         val deepIdx = list.indexOfFirst { seg ->
             val es = Reflect.callByName(seg, "getEntries") as? List<*>
-            es != null && es.any { it != null && it.javaClass.simpleName == SIMPLE_DEEP_ENTRY }
+            es != null && es.any { it != null && it.javaClass.menuSimpleName == SIMPLE_DEEP_ENTRY }
         }
         if (deepIdx < 0) return segments
         val deepSeg = list[deepIdx] ?: return segments
@@ -580,10 +625,26 @@ internal object LauncherMenuHook {
         }
         val clone = runCatching {
             val gCls = srcG.javaClass
+            // 构造签名随版本漂移：17.3.12 无参；**17.5.4 变 3 参 `(String label, Z, Z)`**
+            // （m=标签、q/r=两个 boolean，克隆循环会用 srcG 全量字段覆盖，传安全默认值即可）。
+            // ⚠️ v1.4.8 事故：只认无参 ⇒ 找不到时 return null **零日志**，折叠行永远建不出来
             val ctor = gCls.declaredConstructors.firstOrNull { it.parameterCount == 0 }
-                ?: return@runCatching null
+                ?: gCls.declaredConstructors.firstOrNull { it.parameterCount == 3 }
+            if (ctor == null) {
+                LogUtils.w(
+                    TAG, "obtainFoldClone",
+                    "行模型 ${gCls.name} 无 0/3 参构造（现有：" +
+                        gCls.declaredConstructors.joinToString { "${it.parameterCount}参" } + "），放弃折叠",
+                )
+                return@runCatching null
+            }
             ctor.isAccessible = true
-            val g = ctor.newInstance()
+            val g = if (ctor.parameterCount == 0) {
+                ctor.newInstance()
+            } else {
+                // (String label, boolean, boolean)——字段随后全量覆盖，默认值只为过 Kotlin 非空检查
+                ctor.newInstance("", false, false)
+            }
             for (f in gCls.declaredFields) {
                 f.isAccessible = true
                 f.set(g, f.get(srcG))
@@ -601,19 +662,46 @@ internal object LauncherMenuHook {
     }
 
     /**
-     * 合成只包折叠行的 `DeepShortcutEntry`：`(g, null, null, false)` —— 与宿主
-     * `populateAndShow` :1886 构造占位深链条目同款（null wii/si 是宿主自己的用法）。
-     * ready=false 无所谓：原生 onClick 已被压制段换掉，没人会读它。
+     * 合成只包折叠行的 `DeepShortcutEntry`。
+     *
+     * 构造签名随版本漂移（**17.5.4 实证只有 3 参** `(g, WorkspaceItemInfo, ShortcutInfo)`，
+     * 17.3.12 是 4 参 `(g, wii, si, ready)`）⇒ 两种都试；都找不到才放弃。
+     *
+     * ⚠️ 找不到构造器时**必须打日志**：v1.4.6 在 17.5.4 上因 4 参构造不存在静默返回 null，
+     * 折叠行建不出来而 `limit=1` 照砍 ⇒ 用户看到「快捷方式只剩一个」且零日志可查。
      */
-    private fun buildFoldEntry(foldG: Any): Any? = runCatching {
-        val cls = Reflect.classOrNull(HookEnv.classLoader, CLS_DEEP_ENTRY) ?: return@runCatching null
-        val ctor = cls.declaredConstructors.firstOrNull { it.parameterCount == 4 }?.also {
-            it.isAccessible = true
-        } ?: return@runCatching null
-        ctor.newInstance(foldG, null, null, false)
-    }.getOrElse {
-        LogUtils.w(TAG, "buildFoldEntry", "合成折叠行条目失败：${it.message}")
-        null
+    private fun buildFoldEntry(foldG: Any): Any? {
+        val cls = Reflect.classOrNull(HookEnv.classLoader, CLS_DEEP_ENTRY)
+        if (cls == null) {
+            LogUtils.w(TAG, "buildFoldEntry", "$CLS_DEEP_ENTRY 不存在，放弃折叠")
+            return null
+        }
+        val ctor4 = cls.declaredConstructors.firstOrNull { it.parameterCount == 4 }
+        if (ctor4 != null) {
+            return runCatching {
+                ctor4.isAccessible = true
+                ctor4.newInstance(foldG, null, null, false)
+            }.getOrElse {
+                LogUtils.w(TAG, "buildFoldEntry", "4 参构造失败：${it.message}")
+                null
+            }
+        }
+        val ctor3 = cls.declaredConstructors.firstOrNull { it.parameterCount == 3 }
+        if (ctor3 != null) {
+            return runCatching {
+                ctor3.isAccessible = true
+                ctor3.newInstance(foldG, null, null)
+            }.getOrElse {
+                LogUtils.w(TAG, "buildFoldEntry", "3 参构造失败：${it.message}")
+                null
+            }
+        }
+        LogUtils.w(
+            TAG, "buildFoldEntry",
+            "DeepShortcutEntry 没有 3/4 参构造（现有：" +
+                cls.declaredConstructors.joinToString { "${it.parameterCount}参" } + "），放弃折叠",
+        )
+        return null
     }
 
     /**
@@ -633,7 +721,7 @@ internal object LauncherMenuHook {
                 for (e in sys) {
                     if (e == null) continue
                     val s = Reflect.callByName(e, "getShortcut") ?: continue
-                    if (s.javaClass.simpleName == SIMPLE_MORE) {
+                    if (s.javaClass.menuSimpleName == SIMPLE_MORE) {
                         sc = s
                         break
                     }
@@ -701,8 +789,20 @@ internal object LauncherMenuHook {
             return
         }
         if (Reflect.getField(win, "F") === subClickRouter) return
+        // 17.5.4 实证：E/F/n/Q 全部从 poplist.b 挪进了父类 poplist.a（E=一级、F=二级面板监听器）；
+        // Reflect.findField 沿父类链就近查找仍能命中。但若某版本又把 F 挪走或换成非监听器类型
+        // （b 上就同时存在同名的约束助手 F），盲目 setField 会类型错且**失败也打成功日志**
+        // —— 先验证字段类型、再校验换装结果，失败明确记 W。
+        val f = Reflect.findField(win.javaClass, "F")
+        if (f == null || !AdapterView.OnItemClickListener::class.java.isAssignableFrom(f.type)) {
+            LogUtils.w(TAG, "ensureSubClickRouting", "窗口 F 字段缺失或类型漂移（非 OnItemClickListener），二级面板分发未接管")
+            return
+        }
         subClickOrigF = Reflect.getField(win, "F")
-        Reflect.setField(win, "F", subClickRouter)
+        if (!Reflect.setField(win, "F", subClickRouter)) {
+            LogUtils.w(TAG, "ensureSubClickRouting", "换装 F 失败（setField 返回 false），二级面板分发未接管")
+            return
+        }
         LogUtils.i(TAG, "ensureSubClickRouting", "已接管二级面板点击分发（原生分发器委托保留）")
     }
 

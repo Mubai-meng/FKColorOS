@@ -218,7 +218,7 @@ internal object FileManagerHook {
  * services.jar + oplus-services.jar（dexsql 查询，2026-11-07）：
  * - `com.android.server.pm.OplusDefaultAppPolicyManager#interceptPickerIntent(Intent, List)` 存在，
  *   129 opcode（非 bridge）；**该类在 oplus-services.jar**（运行时并入 bootclasspath，system_server 可见）。
- * - `com.android.server.wm.ActivityStarter#execute()V` 存在（1196 opcode，未被完全内联）；
+ * - `com.android.server.wm.ActivityStarter#execute()` 存在（17 固件返回类型 void→int，1201 opcode）；
  * - `com.android.server.wm.ActivityStarter$Request#resolveActivity(ActivityTaskSupervisor)V` 存在（362 opcode）；
  * - `ActivityStarter` 字段 `mRequest` / `mService` 均在；
  * - `ActivityStarter$Request` 字段 `intent` / `userId` / `resolvedType` / `callingPackage` /
@@ -394,7 +394,10 @@ internal object FilePickerHook {
         }
 
         // --- 路径一：execute() 前改写 mRequest
-        val execute = Reflect.findMethodByShape(starter, "execute", emptyList(), Void.TYPE)
+        // ⚠️ AOSP 17 起 execute() 返回类型从 void 变成 int（返回 START_* 结果码，1201 opcode）——
+        //    按 Void.TYPE 匹配会恒 miss（v1.4.x 实证日志「ActivityStarter#execute()V 不存在」）。
+        //    ActivityStarter 里 execute 只有一个重载，按「名字 + 0 参」取即可，不校验返回类型。
+        val execute = Reflect.findMethod(starter, "execute", 0)
         if (execute == null) {
             LogUtils.w(TAG, "install", "ActivityStarter#execute()V 不存在，跳过 execute 路径")
         } else {

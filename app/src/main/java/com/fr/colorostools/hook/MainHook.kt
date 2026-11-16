@@ -3,6 +3,7 @@ package com.fr.colorostools.hook
 import android.annotation.SuppressLint
 import android.util.Log
 import com.fr.colorostools.hook.hookers.AccessibilityEnhanceHook
+import com.fr.colorostools.hook.hookers.AutoBrightnessHook
 import com.fr.colorostools.hook.hookers.ExpressCardHook
 import com.fr.colorostools.hook.hookers.FakeScreenHook
 import com.fr.colorostools.hook.hookers.FileManagerHook
@@ -90,6 +91,9 @@ class MainHook : XposedModule() {
         // 文件选择器路由（文件管理页的「使用 MT 管理器为选择器」/「使用原生文件选择器」）：
         // 裁决点在 ActivityStarter 与 OplusDefaultAppPolicyManager，只能在 system_server 改
         FilePickerHook.install()
+        // 自动亮度低照度提升（系统框架页）：挂 ABC#calculateAmbientLux post-hook，
+        // 低照度下放大环境光估计，映射/迟滞整链自洽，见 AutoBrightnessHook 类文档
+        AutoBrightnessHook.install()
     }
 
     /**

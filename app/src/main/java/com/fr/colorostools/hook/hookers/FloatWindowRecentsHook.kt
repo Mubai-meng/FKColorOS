@@ -24,7 +24,8 @@ import io.github.libxposed.api.XposedInterface
  *
  * ## 一、多任务隐藏小窗应用（launcher）
  *
- * 原生过滤入口（本机 `系统桌面_17.3.12` 实证）：`ko.a#d(int, int, GroupedTaskInfo, ArrayList)Z`，
+ * 原生过滤入口（本机 `系统桌面` 实证，混淆名随版本漂移，见 `CLS_RECENT_FILTERS`）：
+ * 17.5.4 = `jn7#b(int, int, GroupedTaskInfo, ArrayList)Z`、17.3.12 = `ko.a#d(...)`，
  * **返回 true = 该卡片被移除**。它是 `synchronized` 方法，前置返回 true 即可跳过原生判定。
  *
  * 两个约束：
@@ -72,8 +73,18 @@ internal object FloatWindowRecentsHook {
     private const val TAG = "FloatWindowRecents"
 
     // ---------------------------------------------------------- launcher 侧
-    private const val CLS_RECENT_FILTER = "ko.a"
-    private const val CLS_RECENT_FILTER_ALT = "com.oplus.quickstep.data.OplusRecentTasksFilter"
+    /**
+     * 多任务过滤类候选（混淆名随 OTA 漂移，按新到旧排列）：
+     * - 17.5.4 = **`jn7`**（日志 tag `OplusRecentTasksFilter`）：方法
+     *   `b(int,int,GroupedTaskInfo,ArrayList)Z`（484 opcode，synchronized），返回 true = 移除卡片；
+     *   调用方 `com.android.quickstep.e#i`（多任务列表装载）与 `pn7#i`。
+     * - 17.3.12 = `ko.a#d(...)`；更早版本用语义名 `OplusRecentTasksFilter`。
+     */
+    private val CLS_RECENT_FILTERS = listOf(
+        "jn7",
+        "ko.a",
+        "com.oplus.quickstep.data.OplusRecentTasksFilter",
+    )
     private const val CLS_GROUPED_TASK = "com.android.wm.shell.shared.GroupedTaskInfo"
     private const val CLS_GROUPED_TASK_ALT = "com.android.wm.shell.util.GroupedRecentTaskInfo"
     private const val CLS_FLEXIBLE_WM = "com.oplus.flexiblewindow.FlexibleWindowManager"
@@ -92,33 +103,42 @@ internal object FloatWindowRecentsHook {
     // ============================================================ 一、多任务隐藏小窗（launcher）
 
     fun installInLauncher() {
-        val filterCls = Reflect.classOrNull(HookEnv.classLoader, CLS_RECENT_FILTER)
-            ?: Reflect.classOrNull(HookEnv.classLoader, CLS_RECENT_FILTER_ALT)
+        val filterCls = CLS_RECENT_FILTERS.firstNotNullOfOrNull {
+            Reflect.classOrNull(HookEnv.classLoader, it)
+        }
         val groupedCls = Reflect.classOrNull(HookEnv.classLoader, CLS_GROUPED_TASK)
             ?: Reflect.classOrNull(HookEnv.classLoader, CLS_GROUPED_TASK_ALT)
         if (filterCls == null || groupedCls == null) {
             LogUtils.w(
                 TAG, "installLauncher",
-                "过滤类或 GroupedTaskInfo 不存在（$CLS_RECENT_FILTER / $CLS_GROUPED_TASK），跳过多任务隐藏小窗",
+                "过滤类或 GroupedTaskInfo 不存在（${CLS_RECENT_FILTERS.joinToString()} / $CLS_GROUPED_TASK），跳过多任务隐藏小窗",
             )
             return
         }
+        // 17.5.4 的 GroupedTaskInfo 没有语义名 getter，混淆名也从 e/f 变成了 c/d：
+        // c() = 第一张卡、d() = 第二张卡（d() != null 即成对卡片）。名字找不到时
+        // 退化按「0 参返回 TaskInfo 的方法按字典序」兜底。
         val first = taskGetter(groupedCls, "getTaskInfo1", "e")
+            ?: shapeGetter(groupedCls, 0)
         val second = taskGetter(groupedCls, "getTaskInfo2", "f")
+            ?: shapeGetter(groupedCls, 1)
         if (first == null) {
             LogUtils.w(TAG, "installLauncher", "GroupedTaskInfo 的取任务方法找不到，跳过多任务隐藏小窗")
             return
         }
-        // 原生签名：(int, int, GroupedTaskInfo, ArrayList)Z，返回 true = 过滤掉这张卡
-        val m = Reflect.findMethodByShape(
-            filterCls, "d",
-            listOf(Int::class.javaPrimitiveType, Int::class.javaPrimitiveType, groupedCls, ArrayList::class.java),
-            Boolean::class.javaPrimitiveType,
-        ) ?: Reflect.findMethodByShape(
-            filterCls, "filterTaskInfo",
-            listOf(Int::class.javaPrimitiveType, Int::class.javaPrimitiveType, groupedCls, ArrayList::class.java),
-            Boolean::class.javaPrimitiveType,
-        ) ?: run {
+        // 原生签名：(int, int, GroupedTaskInfo, ArrayList)Z，返回 true = 过滤掉这张卡。
+        // 方法名随 OTA 漂移：17.3.12=`ko.a#d`、17.5.4=`jn7#b`（日志实证：只试 d/filterTaskInfo
+        // 会静默跳过）；名字全 miss 时按「唯一匹配该形状的方法」兜底（不看名字）。
+        val filterShape = listOf(
+            Int::class.javaPrimitiveType, Int::class.javaPrimitiveType,
+            groupedCls, ArrayList::class.java,
+        )
+        val m = arrayOf("d", "b", "filterTaskInfo").firstNotNullOfOrNull { name ->
+            Reflect.findMethodByShape(filterCls, name, filterShape, Boolean::class.javaPrimitiveType)
+        } ?: filterCls.declaredMethods.firstOrNull {
+            it.parameterTypes.contentEquals(filterShape.toTypedArray()) &&
+                it.returnType == Boolean::class.javaPrimitiveType
+        }?.apply { isAccessible = true } ?: run {
             LogUtils.w(TAG, "installLauncher", "${filterCls.simpleName} 里没有 (int,int,GroupedTaskInfo,ArrayList)Z，跳过")
             return
         }
@@ -146,7 +166,7 @@ internal object FloatWindowRecentsHook {
         }
     }
 
-    /** 取任务方法：优先语义名，退化为本机混淆名（`e` = 第一张、`f` = 第二张） */
+    /** 取任务方法：优先语义名，退化为本机混淆名（旧 17.3.12=`e`/`f`，17.5.4=`c`/`d`） */
     private fun taskGetter(grouped: Class<*>, primary: String, fallback: String): java.lang.reflect.Method? {
         for (name in arrayOf(primary, fallback)) {
             val m = grouped.declaredMethods.firstOrNull {
@@ -159,22 +179,39 @@ internal object FloatWindowRecentsHook {
     }
 
     /**
+     * 兜底取任务方法：该类里所有「0 参返回 TaskInfo」的方法按**名字字典序**排序后取第 [idx] 个。
+     *
+     * 17.5.4 `GroupedTaskInfo` 实证：0 参返回 TaskInfo 的只有 `c()`（第一张）与 `d()`（第二张），
+     * 字典序 c < d 正好与前后顺序一致；语义名/旧混淆名命中时不会走到这里。
+     */
+    private fun shapeGetter(grouped: Class<*>, idx: Int): java.lang.reflect.Method? {
+        val list = grouped.declaredMethods.filter {
+            it.parameterCount == 0 && TaskInfo::class.java.isAssignableFrom(it.returnType)
+        }.sortedBy { it.name }
+        return list.getOrNull(idx)?.apply { runCatching { isAccessible = true } }
+    }
+
+    /**
      * 是否弹性小窗。
      *
      * 首选 OEM 判据（`getFlexibleWindowState(TaskInfo) == 1`，类在 `oplus-framework.jar`，
      * 任何进程都能解析）；取不到才退回「窗口模式 == FREEFORM(5)」。
+     *
+     * ⚠️ 该函数在多任务过滤热路径上（每次 recents 数据刷新 × 每张任务卡调用一次）：
+     * `getInstance` 工厂与 `findMethodByShape` 的结果按进程缓存（单例 + 方法引用不变），
+     * 命中后每次调用只剩一次反射 invoke。解析失败不缓存，下次重试（类可能晚加载）。
      */
+    @Volatile
+    private var flexibleWmInstance: Any? = null
+
+    @Volatile
+    private var flexibleWmMethod: java.lang.reflect.Method? = null
+
     private fun isFlexibleFloating(taskInfo: Any?): Boolean {
         if (taskInfo == null) return false
         val byOem = runCatching {
-            val cls = Reflect.classOrNull(HookEnv.classLoader, CLS_FLEXIBLE_WM) ?: return@runCatching null
-            val instance = Reflect.callStatic(cls, "getInstance") ?: return@runCatching null
-            val m = Reflect.findMethodByShape(
-                cls, "getFlexibleWindowState",
-                listOf(TaskInfo::class.java), Int::class.javaPrimitiveType,
-            ) ?: return@runCatching null
-            m.isAccessible = true
-            (m.invoke(instance, taskInfo) as? Int)
+            val m = flexibleWmMethod ?: resolveFlexibleWm() ?: return@runCatching null
+            (m.invoke(flexibleWmInstance, taskInfo) as? Int)
         }.getOrNull()
         if (byOem != null) return byOem == 1
 
@@ -186,6 +223,20 @@ internal object FloatWindowRecentsHook {
             val wc = Reflect.callByName(cfg, "getWindowConfiguration") ?: return@runCatching false
             (Reflect.callByName(wc, "getWindowingMode") as? Int) == WINDOWING_MODE_FREEFORM
         }.getOrDefault(false)
+    }
+
+    /** 解析 OEM 判据的单例 + 方法（成功才缓存；失败返回 null，下次重试） */
+    private fun resolveFlexibleWm(): java.lang.reflect.Method? {
+        val cls = Reflect.classOrNull(HookEnv.classLoader, CLS_FLEXIBLE_WM) ?: return null
+        val instance = Reflect.callStatic(cls, "getInstance") ?: return null
+        val m = Reflect.findMethodByShape(
+            cls, "getFlexibleWindowState",
+            listOf(TaskInfo::class.java), Int::class.javaPrimitiveType,
+        ) ?: return null
+        m.isAccessible = true
+        flexibleWmInstance = instance
+        flexibleWmMethod = m
+        return m
     }
 
     private const val WINDOWING_MODE_FREEFORM = 5
@@ -299,6 +350,9 @@ internal object FloatWindowRecentsHook {
      * 还顺便把失效记录清干净（任务都不在 RecentTasks 里了，就不可能出现在返回列表里）。
      */
     private fun hiddenKeysNow(recents: Any?): Set<String> {
+        // 常态（没有已关闭记录）直接空集早退：getRecentTasks 在 system_server 是中高频
+        // 出口（SystemUI / 桌面每次查多任务都走），别为空记录做 getRawTasks + HashSet 构建
+        synchronized(closedLock) { if (closedKeys.isEmpty()) return emptySet() }
         val raw = runCatching {
             (Reflect.callByName(recents, "getRawTasks") as? Collection<*>)
                 ?.mapNotNull { keyOf(it) }

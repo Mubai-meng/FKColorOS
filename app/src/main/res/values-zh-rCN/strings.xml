@@ -1575,4 +1575,20 @@
     <string name="quick_app_category_express">快递服务</string>
     <string name="quick_app_express_no_mini">快递不跳小程序</string>
     <string name="quick_app_express_no_mini_summary">在快应用内直接查询快递，避免跳转其他小程序</string>
+
+    <!-- 系统框架（宿主 system_server） -->
+    <string name="SystemFramework">系统框架</string>
+    <string name="sysfw_section_autobr">自动亮度暗环境提升</string>
+    <string name="sysfw_autobr_enable">暗环境亮度提升</string>
+    <string name="sysfw_autobr_enable_summary">环境光低于上限时适度提高自动亮度，改动即时生效、无需重启</string>
+    <string name="sysfw_autobr_factor">提升强度</string>
+    <string name="sysfw_autobr_factor_summary">低于上限时把环境光估计按此倍数放大（160% 即 1.6 倍）</string>
+    <string name="sysfw_autobr_offset">低亮度补偿（lux）</string>
+    <string name="sysfw_autobr_offset_summary">在放大结果上直接增加，抬升极暗场景的基准亮度</string>
+    <string name="sysfw_autobr_luxmax">生效上限（lux）</string>
+    <string name="sysfw_autobr_luxmax_summary">只在此环境光以下放大，超过则保持原生行为</string>
+    <string name="sysfw_autobr_maxgain">结果上限（% × 生效上限）</string>
+    <string name="sysfw_autobr_maxgain_summary">放大后的环境光不超过 生效上限 × 此值，防止映射曲线跳档</string>
+    <string name="sysfw_autobr_percent_value">%d%%</string>
+    <string name="sysfw_autobr_lux_value">%d lux</string>
 </resources>

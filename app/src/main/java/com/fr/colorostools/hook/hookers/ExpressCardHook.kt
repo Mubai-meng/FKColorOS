@@ -353,11 +353,16 @@ internal object ExpressCardHook {
      * （它们是同一个 `sendReq`，靠 `sceneid=card`、卡片 SDK 调用栈与单号三者区分）。
      */
     private fun hookWechat() {
+        // 基类命中即停：17.5.x 快应用框架里 WXApiImplV10 是空壳子类（只剩 <init>，未覆写 sendReq），
+        // hook 基类 sendReq 的虚方法分发已覆盖全部实例；只有基类不存在/没有 sendReq 时
+        // 才继续试子类兜底 —— 否则每个空壳子类都会白报一条「没有匹配方法」（v1.4.x 实证噪音）。
+        var installed = 0
         for (className in listOf(
             "com.tencent.mm.opensdk.openapi.BaseWXApiImplV10",
             "com.tencent.mm.opensdk.openapi.WXApiImplV10",
         )) {
-            installMethods(className, { method ->
+            if (installed > 0) break
+            installed += installMethods(className, { method ->
                 method.name == "sendReq" &&
                     method.returnType == Boolean::class.javaPrimitiveType &&
                     method.parameterCount == 1
@@ -592,7 +597,7 @@ internal object ExpressCardHook {
     }
 
     /**
-     * 在宿主类 [className] 的全部 `declaredMethods` 里按 [matches] 挂钩子。
+     * 在宿主类 [className] 的全部 `declaredMethods` 里按 [matches] 挂钩子，返回命中个数。
      *
      * 类不存在只记一行 W（不同快应用引擎版本可能没有某组类），不影响其它组。
      */
@@ -600,11 +605,11 @@ internal object ExpressCardHook {
         className: String,
         matches: (Method) -> Boolean,
         intercept: (XposedInterface.Chain) -> Any?,
-    ) {
+    ): Int {
         val target = Reflect.classOrNull(HookEnv.classLoader, className)
         if (target == null) {
             LogUtils.w(TAG, "install", "$className 不存在，该组跳过")
-            return
+            return 0
         }
         var hooked = 0
         target.declaredMethods.filter(matches).forEach { method ->
@@ -624,6 +629,7 @@ internal object ExpressCardHook {
         if (hooked == 0) {
             LogUtils.w(TAG, "install", "$className 里没有匹配方法，该组跳过")
         }
+        return hooked
     }
 
     // ------------------------------------------------------------ 会话
