@@ -33,6 +33,7 @@ import com.fr.colorostools.ui.compose.scopes.apps.OplusKeyboardQwertySpec
 import com.fr.colorostools.ui.compose.scopes.apps.OplusKeyboardSpec
 import com.fr.colorostools.ui.compose.scopes.apps.OplusKeyboardT9Spec
 import com.fr.colorostools.ui.compose.scopes.apps.QuickAppServiceSpec
+import com.fr.colorostools.ui.compose.scopes.apps.ThemeStoreSpec
 import com.fr.colorostools.ui.compose.scopes.apps.WeatherSpec
 import com.fr.colorostools.ui.compose.scopes.apps.fluidCloudSpecs
 import com.fr.colorostools.ui.compose.components.PrefIndexItem
@@ -592,6 +593,9 @@ object ScopePageRegistry {
         "oplus_file_manager" to "oplus_file_manager",
         // 快应用服务（无旧 nav id 的新页）：自映射让 page() 跳转与搜索索引都能解析
         "quick_app_service" to "quick_app_service",
+        // 主题商店（宿主 com.heytap.themestore）：旧 nav id themeStore 已映射到 theme_store，
+        // 这里补自映射 —— 搜索索引与 page(target=主题商店) 需要按 pageKey 解析
+        "theme_store" to "theme_store",
     )
 
     init {
@@ -626,6 +630,9 @@ object ScopePageRegistry {
         register(FileManagerSpec)
         // 快应用服务（宿主 com.nearme.instant.platform / 系统桌面 / 小布建议）：快递不跳小程序
         register(QuickAppServiceSpec)
+        // 主题商店（宿主 com.heytap.themestore）：解锁会员 / 去广告 / 试用资源不过期
+        // ⚠️ treeOrder 里早就有 theme_store 节点（旧功能树遗留），直接复用，不新增顶层节点
+        register(ThemeStoreSpec)
         // 后续按用户逐个指定的 hook 功能在此 register(...)
     }
 }

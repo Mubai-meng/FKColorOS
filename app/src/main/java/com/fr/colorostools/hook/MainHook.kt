@@ -18,6 +18,7 @@ import com.fr.colorostools.hook.hookers.KeyguardNotificationOffsetHook
 import com.fr.colorostools.hook.hookers.LauncherHiddenAppsHook
 import com.fr.colorostools.hook.hookers.LauncherMenuHook
 import com.fr.colorostools.hook.hookers.OplusKeyboardHook
+import com.fr.colorostools.hook.hookers.ThemeStoreHook
 import com.fr.colorostools.hook.hookers.WeatherNoBrowserHook
 import com.fr.colorostools.hook.hookers.WeatherPurifyHook
 import com.fr.colorostools.ref.Reflect
@@ -173,6 +174,12 @@ class MainHook : XposedModule() {
         if (pkg == HookEnv.PKG_FILE_MANAGER) {
             LogUtils.i(TAG, via, "文件管理宿主命中（$pkg），安装隐藏安全访问提示 Hooker")
             FileManagerHook.install()
+        }
+        // 主题商店 + 主题基础服务：解锁会员 / 去广告 / 试用资源不过期
+        // （两个包同源代码，能挂什么由 ThemeStoreHook 按包名与类存在性分流，见其类文档）
+        if (pkg == HookEnv.PKG_THEME_STORE || pkg == HookEnv.PKG_THEME_BASE) {
+            LogUtils.i(TAG, via, "主题宿主命中（$pkg），安装主题商店 Hooker")
+            ThemeStoreHook.install(pkg)
         }
         // 快递不跳小程序：三个入口宿主各管一段（平台进程是主战场，桌面与小布只改写目的地）
         if (pkg in ExpressCardHook.packages) {

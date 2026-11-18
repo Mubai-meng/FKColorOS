@@ -110,3 +110,15 @@ com.nearme.instant.platform
 # 只是卡片入口侧的兜底：从卡片点进来时把目的地改写成应用内快递页，不参与 hapjs 运行时。
 # （第三个入口 com.android.launcher 已在上面声明，同一份 Hooker 覆盖。）
 com.coloros.assistantscreen
+
+# 主题商店（宿主 com.heytap.themestore）：解锁会员 / 去广告 / 试用资源不过期。
+# 逆向实证（主题商店 17.11.21）：会员状态唯一汇聚点 UserInfoManager#P() 读 VipUserDto；
+# 开屏广告 com.nearme.themespace.ad.l；试用到期广播 ThemeTrialExpireReceiver。
+# 三个开关只改 DTO getter / 列表 getter / 广播接收，不涉及订单与支付。
+# 见 hook/hookers/ThemeStoreHook.kt 与 docs/主题商店-移植方案.md。
+com.heytap.themestore
+
+# 主题基础服务（com.oplus.themestore）：与主题商店同源 themespace 代码，是资源应用与试用还原的执行端。
+# 该包无广告/弹窗/JS 接口类（无 com.nearme.themespace.ad.*），去广告不在此进程；
+# 「试用不过期」在此拦 nd.s（AtomTrialRecoverApplyManager）#e0()V，避免到期还原成默认主题。
+com.oplus.themestore

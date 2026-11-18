@@ -1591,4 +1591,14 @@
     <string name="sysfw_autobr_maxgain_summary">放大后的环境光不超过 生效上限 × 此值，防止映射曲线跳档</string>
     <string name="sysfw_autobr_percent_value">%d%%</string>
     <string name="sysfw_autobr_lux_value">%d lux</string>
+
+    <!-- 主题商店（宿主 com.heytap.themestore） -->
+    <string name="theme_store_category_vip">会员</string>
+    <string name="theme_store_vip">解锁会员功能</string>
+    <string name="theme_store_vip_summary">会员状态、会员资源与会员价格按已开通处理（需已登录账号）</string>
+    <string name="theme_store_category_ads">净化</string>
+    <string name="theme_store_remove_ads">去除开屏与广告卡片</string>
+    <string name="theme_store_remove_ads_summary">屏蔽启动开屏广告、首页横幅与信息流广告卡片</string>
+    <string name="theme_store_keep_trial">试用资源不过期</string>
+    <string name="theme_store_keep_trial_summary">试用主题、字体到期后不自动还原（仅客户端生效）</string>
 </resources>

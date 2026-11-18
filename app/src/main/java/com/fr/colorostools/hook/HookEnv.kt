@@ -109,6 +109,37 @@ object HookEnv {
     const val PKG_FILE_MANAGER = "com.coloros.filemanager"
 
     /**
+     * 主题商店（`com.heytap.themestore`）：解锁会员 / 去广告 / 试用资源不过期。
+     *
+     * 逆向实证（主题商店 17.11.21，`E:/WorkBuddy_All/APP/oneplus/主题商店_17.11.21.apk`）：
+     * - 会员状态唯一汇聚点 `UserInfoManager#P()`，判据是 `VipUserDto#getVipStatus()==1`
+     *   且 `getEndTime()` 未过期 ⇒ 在这里改 DTO 即可，**不需要伪造登录态**；
+     * - 开屏广告 `com.nearme.themespace.ad.l`（展示判定 `y(SplashDto)Z`、自有素材 `ad.self.f#M`）；
+     * - 试用到期广播 `com.nearme.themespace.trial.ThemeTrialExpireReceiver#onReceive`。
+     * 细节见 `hook/hookers/ThemeStoreHook.kt` 类文档与 `docs/主题商店-移植方案.md`。
+     */
+    const val PKG_THEME_STORE = "com.heytap.themestore"
+
+    /**
+     * 主题基础服务（`com.oplus.themestore`）：主题/字体/壁纸的**资源应用与试用还原**执行者。
+     *
+     * 包名与「主题商店」不同，但两者出自同一份 themespace 代码库、类名完全一致；
+     * 基础服务裁掉了商店 UI/广告/试用广播接收器，保留了 DTO 与 apply 流程。
+     *
+     * 17.11.21 反汇编实证（`E:/WorkBuddy_All/APP/oneplus/主题基础服务_17.11.21.apk`）：
+     * - 存在：`VipUserDto` / `WeatherPageResponseDto` / `ResourceItemDto` /
+     *   `PublishProductItemDto`（与商店同签名，会员 getter 可直接复用）；
+     * - **不存在**：`com.nearme.themespace.ad.*`（开屏）、`fragments.i7`（首页弹窗）、
+     *   `jsinterface.ThemeGroup`（H5 JS 接口）、`trial.ThemeTrialExpireReceiver`（到期广播）
+     *   ⇒ 去广告与广播拦截不能挂在这里，只能挂商店；
+     * - 真正属于本包的「试用还原」执行体：`nd.s`（`source_file =
+     *   AtomTrialRecoverApplyManager.java`，构造 `(Context, ApplyParams, apply/d)`）的
+     *   `e0()V`，内部对 `TrialRecoverResInstallValidate`（`hd.l`）等校验器逐个判
+     *   `pd.d#b()`，不通过就 `qd.b#u()` **恢复默认主题** ⇒ 拦 `e0()` 即到期不还原。
+     */
+    const val PKG_THEME_BASE = "com.oplus.themestore"
+
+    /**
      * 快应用服务 / 快应用平台（`com.nearme.instant.platform`）：「快递不跳小程序」主宿主。
      *
      * 快递卡片的核心逻辑（`hap://app/com.nearme.quickapp.express/...` 改写、hapjs 包探测屏蔽、

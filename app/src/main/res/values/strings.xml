@@ -1782,4 +1782,14 @@
     <string name="sysfw_autobr_maxgain_summary">Boosted lux is clamped to this ratio of the ambient limit to avoid curve jumps</string>
     <string name="sysfw_autobr_percent_value">%d%%</string>
     <string name="sysfw_autobr_lux_value">%d lux</string>
+
+    <!-- Theme store (host com.heytap.themestore) -->
+    <string name="theme_store_category_vip">Membership</string>
+    <string name="theme_store_vip">Unlock VIP features</string>
+    <string name="theme_store_vip_summary">Treat the account as VIP for status, VIP-only resources and pricing (requires a signed-in account)</string>
+    <string name="theme_store_category_ads">Cleanup</string>
+    <string name="theme_store_remove_ads">Remove splash and ad cards</string>
+    <string name="theme_store_remove_ads_summary">Block splash ads, the home banner and in-feed ad cards</string>
+    <string name="theme_store_keep_trial">Keep trial resources</string>
+    <string name="theme_store_keep_trial_summary">Trial themes and fonts stay applied after they expire (client side only)</string>
 </resources>
