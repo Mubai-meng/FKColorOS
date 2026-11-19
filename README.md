@@ -4,7 +4,7 @@
 
 基于 **libxposed API 102**（现代模块，非 XposedBridge 兼容模式），Kotlin + Jetpack Compose 编写。
 
-> 当前版本 **1.5.0（167）** · 仅适配 arm64-v8a · 需要 Android 11+（minSdk 30）· 只在 ColorOS 17 / OnePlus 15 上做过真机验证
+> 当前版本 **1.5.5（172）** · 仅适配 arm64-v8a · 需要 Android 11+（minSdk 30）· 只在 ColorOS 17 / OnePlus 15 上做过真机验证
 
 ---
 
@@ -19,7 +19,7 @@
 | ABI | arm64-v8a |
 | 构建 | AGP 9.4.1 · Kotlin 2.4.21 · JDK 21 · Compose BOM 2026.09.00 |
 
-模块作用域为十个宿主，安装后 LSPosed 里会自动预勾选：
+模块作用域为十二个宿主，安装后 LSPosed 里会自动预勾选：
 
 ```
 system                         系统框架（system_server）
@@ -32,10 +32,14 @@ com.android.systemui           系统界面
 com.coloros.filemanager        文件管理
 com.nearme.instant.platform    快应用服务
 com.coloros.assistantscreen    智慧建议（负一屏）
+com.heytap.themestore          主题商店
+com.oplus.themestore           主题基础服务
 ```
 
 > `system` 是 libxposed 里 system_server 的作用域名，LSPosed 界面显示为「系统框架」。
 > 别和 `android` 搞混——后者是 ChooserActivity 这类系统弹窗进程，勾了不会触发 system_server 侧逻辑。
+>
+> 两个主题包同源于 themespace 代码但分工不同：`com.heytap.themestore` 是商店本体（会员状态、广告、到期广播），`com.oplus.themestore` 是主题基础服务（资源应用与试用还原的执行端）。会员与去广告只需前者；「试用不过期」要真正挡住到期还原，两者都要在作用域内。
 
 ---
 
@@ -52,16 +56,19 @@ com.coloros.assistantscreen    智慧建议（负一屏）
 | 天气隐藏广告 | 隐藏运营卡片推广位与冷启动开屏广告，保留天气预警标签 | `com.coloros.weather2` |
 | 天气隐藏全部运营卡片 | 首页运营卡片区整块不显示 | `com.coloros.weather2` |
 | 熄屏挂机 | 电源键触发假熄屏，应用继续运行，再按一次即可回来；不写系统设置、不留后台服务 | `system` |
-| 自动亮度暗环境提升 | 环境光低于上限时适度提高屏幕亮度：提升强度 / 低亮度补偿 / 生效上限 / 结果上限四个参数可调，≥上限完全原生行为 | `system` |
+| 自动亮度暗环境提升 | 环境光低于上限时适度提高屏幕亮度，四个参数可调（提升强度 / 低亮度补偿 / 生效上限 / 结果上限），接近上限平滑收敛、达到上限完全原生行为；同时跳过 ColorOS 自带的暗环境降亮度 | `system` |
 | 浮窗（小窗）增强 | 数量上限 / 关闭后隐藏 / 贴边挂机 / 贴边静音 / 白色竖条 / 横屏比例 / 贴边位置与最大尺寸 | `system` |
 | 小布输入法 · 模糊与下滑 | 强制液态玻璃模糊；按键下滑执行 25 种编辑动作，26 键与九宫格独立配置 | `com.oplus.keyboard` |
 | 锁屏通知下移 | 锁屏通知整体下移 0–40dp，覆盖静止 / 拖拽 / 展开 / 收起四种状态 | `com.android.systemui` |
 | 文件管理 | 隐藏文件选择页的安全访问提示；选文件改走 MT 管理器或原生选择器 | `com.coloros.filemanager` + `system` |
+| 主题商店 · 会员 | 会员状态、会员资源与会员价格按已开通处理（需已登录账号），不涉及订单与支付 | `com.heytap.themestore` |
+| 主题商店 · 去广告 | 屏蔽启动开屏广告、首页横幅与信息流广告卡片 | `com.heytap.themestore` |
+| 主题商店 · 试用不过期 | 试用主题、字体到期后不自动还原（客户端侧拦截到期还原） | `com.heytap.themestore` + `com.oplus.themestore` |
 | 快应用服务 | 快递查询不跳小程序，在快应用内直接完成 | `com.nearme.instant.platform` + `com.android.launcher` + `com.coloros.assistantscreen` |
 
 每个开关独立，关闭即完全不动宿主行为。宿主侧只做「类存在才安装 hook」的自适应判断，所以系统小版本更新导致某个类消失时，对应 hook 会自己跳过，不会连累其他功能。
 
-功能树里「系统框架」「锁屏」「浮窗」「快应用服务」是独立顶层节点；天气页把净化与不外跳合并为一页三开关，小布输入法页把模糊与下滑快捷键合并为一页。
+功能树里「系统框架」「锁屏」「浮窗」「快应用服务」「主题商店」是独立顶层节点；天气页把净化与不外跳合并为一页三开关，小布输入法页把模糊与下滑快捷键合并为一页。
 
 ### 实现取向
 
@@ -74,13 +81,13 @@ com.coloros.assistantscreen    智慧建议（负一屏）
 ## 安装
 
 1. 设备已 root 并装好 LSPosed
-2. 安装 `FKColorOS_v1.5.0_release.apk`（debug 版为 `FKColorOS_v{versionName}_debug.apk`）
-3. LSPosed 里启用模块，确认作用域已勾选上表十个宿主
+2. 安装 `FKColorOS_v1.5.5_release.apk`（debug 版为 `FKColorOS_v{versionName}_debug.apk`）
+3. LSPosed 里启用模块，确认作用域已勾选上表十二个宿主
 4. 重启作用域内应用（改设置类功能建议直接重启设备）
 
 > debug 与 release 签名不同，互相覆盖安装会失败，需先卸载。
 
-装好后打开 App，底部五个页签：首页 / 功能 / 日志 / 设置 / 其他。功能树里每个节点对应上面一个宿主应用，点进去是各自开关。（日志页当前为占位，日志统一投递到 LSPosed 日志页，见下节。）
+装好后打开 App，底部五个页签（其他 / 功能 / 主页 / 日志 / 设置）。功能树里每个节点对应上面一个宿主应用，点进去是各自开关。（日志页当前为占位，日志统一投递到 LSPosed 日志页，见下节。）
 
 ---
 
