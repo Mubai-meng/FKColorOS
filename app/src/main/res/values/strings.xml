@@ -1773,13 +1773,13 @@
     <string name="sysfw_autobr_enable">Boost brightness in dark environments</string>
     <string name="sysfw_autobr_enable_summary">Raise auto brightness moderately when ambient light is below the limit; applies immediately, no restart needed</string>
     <string name="sysfw_autobr_factor">Boost factor</string>
-    <string name="sysfw_autobr_factor_summary">Scales the estimated ambient lux below the limit (160% = 1.6x)</string>
+    <string name="sysfw_autobr_factor_summary">Scales the estimated ambient lux below the limit (160% = 1.6x); the multiplier fades out near the limit so there is no jump</string>
     <string name="sysfw_autobr_offset">Low-light offset (lux)</string>
-    <string name="sysfw_autobr_offset_summary">Added on top of the scaled lux to lift the darkest scenes</string>
+    <string name="sysfw_autobr_offset_summary">Added on top of the scaled lux to lift the darkest scenes; also fades out near the limit</string>
     <string name="sysfw_autobr_luxmax">Ambient limit (lux)</string>
-    <string name="sysfw_autobr_luxmax_summary">Boost applies only below this ambient lux level</string>
+    <string name="sysfw_autobr_luxmax_summary">Boost applies only below this ambient lux level; from here on native behavior resumes seamlessly, with no sudden dimming</string>
     <string name="sysfw_autobr_maxgain">Result cap (% of limit)</string>
-    <string name="sysfw_autobr_maxgain_summary">Boosted lux is clamped to this ratio of the ambient limit to avoid curve jumps</string>
+    <string name="sysfw_autobr_maxgain_summary">Hard cap on the boosted result to avoid curve jumps; rarely reached after the smooth roll-off</string>
     <string name="sysfw_autobr_percent_value">%d%%</string>
     <string name="sysfw_autobr_lux_value">%d lux</string>
 

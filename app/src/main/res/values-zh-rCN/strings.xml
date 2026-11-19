@@ -1582,13 +1582,13 @@
     <string name="sysfw_autobr_enable">暗环境亮度提升</string>
     <string name="sysfw_autobr_enable_summary">环境光低于上限时适度提高自动亮度，改动即时生效、无需重启</string>
     <string name="sysfw_autobr_factor">提升强度</string>
-    <string name="sysfw_autobr_factor_summary">低于上限时把环境光估计按此倍数放大（160% 即 1.6 倍）</string>
+    <string name="sysfw_autobr_factor_summary">低于上限时把环境光估计按此倍数放大（160% 即 1.6 倍）；越接近上限倍数越小，平滑过渡不跳变</string>
     <string name="sysfw_autobr_offset">低亮度补偿（lux）</string>
-    <string name="sysfw_autobr_offset_summary">在放大结果上直接增加，抬升极暗场景的基准亮度</string>
+    <string name="sysfw_autobr_offset_summary">在放大结果上直接增加，抬升极暗场景的基准亮度；接近上限时同样淡出</string>
     <string name="sysfw_autobr_luxmax">生效上限（lux）</string>
-    <string name="sysfw_autobr_luxmax_summary">只在此环境光以下放大，超过则保持原生行为</string>
+    <string name="sysfw_autobr_luxmax_summary">只在此环境光以下放大，达到此值起完全保持原生行为（衔接处连续，不会突然变暗）</string>
     <string name="sysfw_autobr_maxgain">结果上限（% × 生效上限）</string>
-    <string name="sysfw_autobr_maxgain_summary">放大后的环境光不超过 生效上限 × 此值，防止映射曲线跳档</string>
+    <string name="sysfw_autobr_maxgain_summary">放大结果的硬上限，防止映射曲线跳档；平滑收敛后通常不会触及</string>
     <string name="sysfw_autobr_percent_value">%d%%</string>
     <string name="sysfw_autobr_lux_value">%d lux</string>
 
