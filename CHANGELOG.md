@@ -1,5 +1,67 @@
 # FKColorOS 更新日志
 
+## v1.5.5 · 2026-11-19
+
+自 v1.5.1 起的累积更新。版本号 1.5.5（172），64 位（arm64-v8a），仅 V2 签名。
+
+### 新增功能
+
+#### 主题商店 · 解锁会员（`com.heytap.themestore`）
+
+- 会员状态、会员资源与会员价格按已开通处理（需已登录账号）
+- 会员状态汇聚点 `UserInfoManager#P()`：让 `VipUserDto#getVipStatus()` 恒 1、`getEndTime()` 恒远期；未登录时仍走宿主原生 INVALID，不伪造登录态
+- 其余 getter 只影响资源卡片与详情页的会员标记与「会员可下载」判定，不触碰订单与支付
+
+#### 主题商店 · 去广告（`com.heytap.themestore`）
+
+- 屏蔽启动开屏广告、首页横幅与信息流广告卡片
+- 开屏走宿主原生「无广告」分支（`ad.l#y(SplashDto)Z → false`，不改实参），清计时器与回调正常收尾，不会卡在开屏
+- 广告卡在数据边界过滤，只去掉 `AdCardDto` / `GoodsAdCardDto`，不碰正常内容与运营位
+
+#### 主题商店 · 试用资源不过期（两个宿主）
+
+- 商店侧跳过 `ThemeTrialExpireReceiver` 的 6 类到期广播（主题 / 字体 / 动态壁纸 / 状态栏与锁屏 SKU / 资源）
+- 基础服务侧拦 `nd.s#e0()V`（`AtomTrialRecoverApplyManager`）——这才是真正的还原执行体，只拦广播挡不住到期还原
+- `com.oplus.themestore` 必须同时在作用域内；仅勾商店侧会失效
+- 作用域由十个宿主增至十二个
+
+### 改进与修复
+
+#### 自动亮度暗环境提升：挂到 ColorOS 真实链路
+
+- 旧实现挂 AOSP `AutomaticBrightnessController#calculateAmbientLux(JJ)F`，在本机属于「装成功但空转」：install 日志齐全，运行时一次都不进
+- 实证：`DisplayPowerController.mAutomaticBrightnessController` 的字段类型是 `IOplusAutomaticBrightnessController`；`OplusAutomaticBrightnessController` 直接 `extends Object`，既不继承 AOSP ABC，也没有 `calculateAmbientLux`
+- 主挂点改为 `OplusLuxResult#getFinalLux()F` post-hook，放大系统相信的环境光，下游映射与迟滞整链自洽
+- 新增 `OplusFeatureDarkEnvReduceBrightness#shouldSkipProcessing(Builder)Z → true`，跳过 ColorOS 自带的「暗环境降亮度」，否则放大的亮度会被再压回去
+- AOSP 方法保留兜底；Oplus 私有类缺失时回退并打 WARN，不再静默
+
+#### 消除上限处亮度骤降
+
+- 旧算式 `min(lux×因子+补偿, 上限×增益)` 与「≥ 上限原样直通」不连续：上限 30 时，29.9 lux 输出 50.8、30.1 lux 输出 30.1，环境光缓慢升过上限屏幕就会突然变暗一档
+- 增益与补偿按 `lux / 生效上限` 线性淡出，越接近上限提升越小，到上限时倍数归零、输出等于直通值，全程单调连续
+- 四个参数的中英文说明同步更新
+
+#### 可观测性
+
+- `boost()` 加采样节流日志：打开「启用详细日志」后每 5 次采样输出一条 `lux X → Y（生效上限 Z）`，可直接分辨「钩子装上了但从未被调用」
+
+### 实证与安全性
+
+- 反编译确认不会累乘放大：`OplusLuxResult.<init>` 只把值写入 `mLastFinalLux`（不动 `mFinalLux`）；`notifyDragInfo` 的 `setFinalLux` 实参取自 `getAutomaticLux()`
+- `shouldSkipProcessing` 是 `OplusFeatureDarkEnvReduceBrightness` 自声明的 private 方法，不是基类方法，不影响同基类其它后处理特性
+- 基础服务的 `e0()` 只在 trial-recover 专用 manager 上，父类 `resourcemanager.apply.b` 无此方法，普通主题应用不会误伤；混淆名用构造签名 `(Context, ApplyParams, apply/d)` 做锚点，不符则只 WARN 跳过
+- 真机日志（10:50）：两个自动亮度钩子均挂载成功，system_server 内无 E 级日志、无 ANR、无 watchdog bite
+
+### 升级说明
+
+- 与 v1.5.4 同签名，可直接覆盖安装；从 debug 版换 release 版需先卸载
+- 安装包名称：`FKColorOS_v1.5.5_release.apk`
+- 作用域新增 `com.heytap.themestore` 与 `com.oplus.themestore` 两个宿主；「试用不过期」需要两者都勾选
+- 自动亮度钩子逻辑已变，安装后必须**完整重启一次手机**，让 system_server 重新装载
+- 验证建议：提升强度先设 180–200、生效上限 60，在环境光 < 10 lux 下观察；打开详细日志后可用 `hit` 采样行确认钩子命中
+
+---
+
 ## v1.5.0 · 2026-11-16
 
 自 v1.4.0 起的累积更新。版本号 1.5.0（167），64 位（arm64-v8a），仅 V2 签名。
