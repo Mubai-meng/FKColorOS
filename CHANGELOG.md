@@ -1,5 +1,46 @@
 # FKColorOS 更新日志
 
+## v1.5.6 · 2026-11-21
+
+自 v1.5.5 起的累积更新。版本号 1.5.6（177），64 位（arm64-v8a），仅 V2 签名。
+
+### 新增功能
+
+#### USB 调试磁贴（`system`）
+
+- 「其他 → 模块内置磁贴列表」新增「USB 调试」，下拉控制中心一键开关；状态直接读系统状态位，与开发者选项里的开关始终一致
+- 实证 ColorOS 17 只有 `Settings.Global["adb_enabled"]` 一个写入点：设置页 `OplusAdbPreferenceController#writeAdbSetting` 整个方法体只有一句 putInt；系统侧 `AdbService$AdbSettingsObserver#onChange` → `setAdbEnabled(Z,B)` → `startAdbd()` / `stopAdbd()` 自动完成启停与持久化。不 hook `UsbDeviceManager`、不调 `IAdbManager`
+- 写需要 `WRITE_SECURE_SETTINGS`，模块 App 拿不到 ⇒ 磁贴发定向广播（`setPackage("android")`），`AdbService#<init>` 的 after 钩子取系统 Context 代写
+- 读不需要桥接：`ADB_ENABLED` 带 `@Settings$Readable`、进 `NameValueCache.mReadableFields` 白名单，普通 App 直接 `Settings.Global.getInt` 即可，无镜像 key、无 ContentObserver
+- 广播加签名级权限 `com.fr.colorostools.permission.TILE_CONTROL`：否则任意应用都能发一条打开 USB 调试，配已授权的 adb key 即是提权通道
+- 点击后 600ms 回读自校验，未生效则 Toast 提示需重启（钩子在 system_server，装机后不重启不生效）；接收器注册失败隔 3 秒重试、最多 5 次，`AdbService` 缺失时退回 `PhoneWindowManager#init` 取 Context
+
+### 改进与修复
+
+#### 弹层被键盘压扁（miuix 线）
+
+- 新增 `MiuixDialogScrollBody`：正文可滚动、底部操作行固定。根因是 miuix `DialogContentLayout` 底对齐且正文不滚动，键盘弹出后可用高度只剩「屏幕 − 键盘」，固定高度子项被逐项压成 0 高度，靠后的输入框与按钮读不到也点不到
+- 取色对话框 SV 面板从 360:288 宽高比改为固定 216dp 高，弹层不再被顶出屏幕顶部，渐变条与十六进制输入框可同屏
+
+#### 应用选择对话框
+
+- 排序与筛选收进可折叠面板，列表不再被一排常驻 chip 挤压
+- 新增全选 / 取消全选、应用总数与已选数量提示；搜索无结果有独立空状态与「清除搜索」
+- 行内图标按两条外观线分别取 44dp / 34dp，列表高度上限 420dp
+
+#### 其他
+
+- 新增通用单选 / 多选弹层 `ChoiceDialog`（本版暂无页面接入，供后续复用）
+
+### 升级说明
+
+- 与 v1.5.5 同签名，可直接覆盖安装；从 debug 版换 release 版需先卸载
+- 安装包名称：`FKColorOS_v1.5.6_release.apk`
+- 新增 system_server 挂点，安装后必须**完整重启一次手机**，磁贴才写得到 `adb_enabled`
+- MDM / 企业定制（`OplusCustomizeRestrictionManagerService#setUsbDebugSwitchDisabled`）会把开关弹回去，本方案不绕过设备管理策略
+
+---
+
 ## v1.5.5 · 2026-11-19
 
 自 v1.5.1 起的累积更新。版本号 1.5.5（172），64 位（arm64-v8a），仅 V2 签名。

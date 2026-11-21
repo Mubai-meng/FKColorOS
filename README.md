@@ -4,7 +4,7 @@
 
 基于 **libxposed API 102**（现代模块，非 XposedBridge 兼容模式），Kotlin + Jetpack Compose 编写。
 
-> 当前版本 **1.5.5（172）** · 仅适配 arm64-v8a · 需要 Android 11+（minSdk 30）· 只在 ColorOS 17 / OnePlus 15 上做过真机验证
+> 当前版本 **1.5.6（177）** · 仅适配 arm64-v8a · 需要 Android 11+（minSdk 30）· 只在 ColorOS 17 / OnePlus 15 上做过真机验证
 
 ---
 
@@ -81,7 +81,7 @@ com.oplus.themestore           主题基础服务
 ## 安装
 
 1. 设备已 root 并装好 LSPosed
-2. 安装 `FKColorOS_v1.5.5_release.apk`（debug 版为 `FKColorOS_v{versionName}_debug.apk`）
+2. 安装 `FKColorOS_v1.5.6_release.apk`（debug 版为 `FKColorOS_v{versionName}_debug.apk`）
 3. LSPosed 里启用模块，确认作用域已勾选上表十二个宿主
 4. 重启作用域内应用（改设置类功能建议直接重启设备）
 
