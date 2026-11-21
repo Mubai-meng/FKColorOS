@@ -38,6 +38,13 @@
     <!--Miuix blur 的 minSdk 为 33、高于本模块的 30，放行 manifest 合并-->
     <uses-sdk tools:overrideLibrary="top.yukonga.miuix.kmp.blur" />
 
+    <!--磁贴命令保护（USB 调试磁贴）：system_server 侧注册接收器时把它作为 broadcastPermission，
+        只有与模块同签名的进程能投递「开关 USB 调试」这条广播。定义者需自己 uses 才持有。-->
+    <permission
+            android:name="com.fr.colorostools.permission.TILE_CONTROL"
+            android:protectionLevel="signature" />
+    <uses-permission android:name="com.fr.colorostools.permission.TILE_CONTROL" />
+
     <!--预测性返回：Android 15 及更早版本必须显式声明该 flag，系统才会为应用提供官方预测性返回动画
         （返回桌面 / 跨 Activity / 跨任务；Android 16 起 targetSdk 36+ 默认开启）。运行期由
         PredictiveBackUtils 按 enable_predictive_back 偏好覆盖该值（应用内默认开启）。-->
@@ -83,6 +90,19 @@
                 android:exported="true"
                 android:icon="@drawable/ic_tile_fake_screen_off"
                 android:label="@string/fake_screen_tile_label"
+                android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!--USB 调试磁贴：与开发者选项里那个开关共用 Settings.Global[adb_enabled]。
+            写操作由 system_server 侧 UsbDebugHook 代做（App 无 WRITE_SECURE_SETTINGS）。-->
+        <service
+                android:name=".tile.UsbDebugTileService"
+                android:exported="true"
+                android:icon="@drawable/ic_tile_usb_debug"
+                android:label="@string/usb_debug_tile_label"
                 android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />

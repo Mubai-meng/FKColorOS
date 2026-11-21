@@ -19,6 +19,7 @@ import com.fr.colorostools.hook.hookers.LauncherHiddenAppsHook
 import com.fr.colorostools.hook.hookers.LauncherMenuHook
 import com.fr.colorostools.hook.hookers.OplusKeyboardHook
 import com.fr.colorostools.hook.hookers.ThemeStoreHook
+import com.fr.colorostools.hook.hookers.UsbDebugHook
 import com.fr.colorostools.hook.hookers.WeatherNoBrowserHook
 import com.fr.colorostools.hook.hookers.WeatherPurifyHook
 import com.fr.colorostools.ref.Reflect
@@ -83,6 +84,9 @@ class MainHook : XposedModule() {
         }
         // 熄屏挂机（假熄屏）：挂 PWM#powerPress 汇聚点，见 FakeScreenHook 类文档
         FakeScreenHook.install()
+        // USB 调试磁贴：App 无 WRITE_SECURE_SETTINGS，由这里代写 Settings.Global[adb_enabled]，
+        // 系统侧 AdbService$AdbSettingsObserver 自己启停 adbd，见 UsbDebugHook 类文档
+        UsbDebugHook.install()
         // 浮窗（小窗）六功能：数量上限 / 横屏比例 / 贴边尺寸 / 贴边挂机 / 静音 / 白色竖条
         // + 关闭小窗后从多任务隐藏（记录关闭态在 WM 侧），见各 Hooker 类文档
         FloatWindowCountHook.install()

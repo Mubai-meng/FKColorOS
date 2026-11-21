@@ -1338,6 +1338,13 @@
     <string name="appinfo_last_updated_time">Last Updated Time</string>
     <string name="appinfo_target_sdk">Target SDK</string>
     <string name="appinfo_system_app">System App</string>
+    <string name="appinfo_app_count">%1$d apps</string>
+    <string name="appinfo_selected_count">%1$d selected</string>
+    <string name="appinfo_select_all">Select all</string>
+    <string name="appinfo_deselect_all">Unselect all</string>
+    <string name="appinfo_no_match">No matching apps</string>
+    <string name="appinfo_clear_search">Clear search</string>
+    <string name="choice_dialog_empty">No options available</string>
     
     <!--Intent-->
     <string name="custom_config_app_intent_list">Custom configuration app intent list</string>
@@ -1702,6 +1709,9 @@
     <string name="launcher_menu_hide_service_card_summary">添加服务卡片到桌面</string>
     <!-- 熄屏挂机（磁贴名） -->
     <string name="fake_screen_tile_label">Fake Screen Off</string>
+    <!-- USB 调试（磁贴名 + 点击失败提示） -->
+    <string name="usb_debug_tile_label">USB Debugging</string>
+    <string name="usb_debug_tile_need_reboot">USB debugging unchanged — reboot the phone once so the module can take effect</string>
 
     <!-- 锁屏：通知区域下移（宿主 com.android.systemui） -->
     <string name="keyguard_ntf_offset_enable">Move lock screen notifications down</string>
