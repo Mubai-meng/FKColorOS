@@ -42,6 +42,17 @@ internal object SwipeGesture {
     /** 提示气泡预览阈值：滑到 `阈值×0.8` 就先显示"当前键 方向：动作"（未触发状态） */
     private const val HINT_PREVIEW_RATIO = 0.8f
 
+    /** [hintPreviewToken] 的「无预览」哨兵 */
+    private const val NO_HINT_TOKEN = 0L
+
+    /**
+     * [labelTextsMark] 的「无缓存」哨兵。
+     *
+     * 取 `Long.MIN_VALUE`（最高位为 1），而所有真实标记都由非负的版本号与代数合成、恒 ≥ 0，
+     * 所以「没算过」永远不会被某个真实标记撞上。
+     */
+    private const val NO_LABEL_MARK = Long.MIN_VALUE
+
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
     /**
@@ -123,6 +134,9 @@ internal object SwipeGesture {
             dir = SwipeConst.DIR_DOWN
             triggered = false
             for (d in 0 until SwipeConst.DIR_COUNT) actions[d] = SwipeConst.A_NONE
+            // 手势结束 ⇒ 预览气泡标识一并复位，下次同键同方向滑动才能重新出气泡。
+            // 放在这里而不是各调用点：clear() 有 12 个调用点，逐处补必然漏。
+            hintPreviewToken = NO_HINT_TOKEN
         }
     }
 
@@ -135,6 +149,13 @@ internal object SwipeGesture {
     private var hintViewRef: WeakReference<android.widget.TextView> = WeakReference(null)
     private var hintRootRef: WeakReference<View> = WeakReference(null)
     private var hintHideTask: Runnable? = null
+
+    /**
+     * 当前已投递的预览气泡标识（见 [hintTokenOf]；[NO_HINT_TOKEN] = 没有预览气泡）。
+     *
+     * 只给 [onMove] 做「同一预览只 post 一次」去重用，不参与业务判定。
+     */
+    private var hintPreviewToken = NO_HINT_TOKEN
 
     /** 键盘类型缓存（视图 → 是否九宫格 / 是否手写） */
     private var cachedViewRef: WeakReference<View> = WeakReference(null)
@@ -156,6 +177,44 @@ internal object SwipeGesture {
      * 只比 width/height 会让缓存命中 ⇒ 用 26 键的坐标去画九宫格的标签，标签飘到错误键位。
      */
     private var labelT9 = false
+
+    /**
+     * 预计算好的标签文本：键 id → 要画的完整文字（已含方向箭头前缀，空串 = 不画）。
+     *
+     * 为什么预计算：`drawLabels()` 跑在**每帧 onDraw** 里，原先的写法对每个键都做
+     * `primaryDirection` + `actionFor` + `labelFor` 三次查表，再 `DIR_SHORT[dir] + label`
+     * **拼接一个新 String** —— 26~34 键/帧，60fps 就是每秒 1560~2040 个临时字符串，
+     * 纯粹给 GC 添堵（掉帧的直接来源之一）。
+     *
+     * 现在只在几何缓存重建 / 配置变化时算一次，绘制循环只做 Map 取值与 Canvas.drawText。
+     */
+    private var labelTexts: Map<String, String> = emptyMap()
+
+    /**
+     * [labelTexts] 对应的失效标记：`配置版本号` 与 `几何代数` 合成。
+     *
+     * - **配置版本号**：设置页改了绑定 ⇒ SwipeConfig 重建 ⇒ 版本变 ⇒ 重算；
+     * - **几何代数**：几何缓存重建（换布局 / 换尺寸 / 换视图）时自增 ⇒ 重算。
+     *
+     * 缺了后者会漏：几何重建后键集合变了，但配置版本号没变，旧的 labelTexts 里没有新键。
+     * 用 `isEmpty()` 当「没算过」也不行 —— **所有键都没标签**是合法状态（全未绑定），
+     * 那样每帧都会重算，等于白优化。
+     */
+    private var labelTextsMark = NO_LABEL_MARK
+
+    /** 几何代数（[ensureLabelCache] 每次真正重建时 +1） */
+    private var labelGeometryGen = 0L
+
+    /**
+     * 把「配置版本号」与「几何代数」合成一个失效标记。
+     *
+     * 版本号占低 20 位、几何代数占高位：两者任一变化都会得到不同的标记。
+     * `SwipeConfig.version` 由单调递增的 [java.util.concurrent.atomic.AtomicLong] 发放，
+     * 理论上超 2^20 会溢出到几何位，但需要一百万次配置重建才会发生，可以忽略；
+     * 即便真的撞上，最坏结果也只是「该重算时没重算」，下一帧配置版本号再变就自动纠正。
+     */
+    private fun markOf(config: SwipeConfig): Long =
+        (labelGeometryGen shl 20) or (config.version and 0xFFFFFL)
 
     /** 标签绘制用的 Paint（复用，避免 onDraw 里反复 new） */
     private val labelPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
@@ -261,6 +320,8 @@ internal object SwipeGesture {
     ): Boolean? {
         keyboardViewRef = WeakReference(view)
         tracker.begin(view, event.x, event.y)
+        // 新手势开始：预览气泡标识复位（否则同键同方向连续滑两次，第二次不出气泡）
+        hintPreviewToken = NO_HINT_TOKEN
 
         // 先下发：宿主需要这次 DOWN 来绘制按压态与启动长按计时
         val passed = proceeded(chain)
@@ -353,14 +414,25 @@ internal object SwipeGesture {
         val threshold = tracker.thresholds[dir]
 
         if (actionMasked == MotionEvent.ACTION_MOVE) {
+            // 预览气泡限流：MOVE 有 60~120Hz，原先每个 MOVE 都往主线程 post 一个 Runnable，
+            // 手指停在预览区间时消息队列会被灌满（且每个 Runnable 内部还要 load 配置）
+            // ⇒ 表现为气泡闪烁、跟手感变差。这里同一 (键, 方向, 动作) 只投递一次。
             if (distance >= threshold * HINT_PREVIEW_RATIO && distance < threshold) {
                 // 预览：还没到触发线，先告诉用户松手会执行什么
                 val key = tracker.key
                 val display = tracker.keyDisplay
                 val act = tracker.actions[dir]
-                view.post { showHint(view, key, display, dir, act, executed = false) }
+                val token = hintTokenOf(key, dir, act)
+                if (token != hintPreviewToken) {
+                    hintPreviewToken = token
+                    view.post { showHint(view, key, display, dir, act, executed = false) }
+                }
             } else if (distance < threshold * HINT_PREVIEW_RATIO) {
-                view.post { hideHint(0) }
+                // 退回 slop 以内才收气泡；同样只在状态真正翻转时投递
+                if (hintPreviewToken != NO_HINT_TOKEN) {
+                    hintPreviewToken = NO_HINT_TOKEN
+                    view.post { hideHint(0) }
+                }
             }
         }
 
@@ -405,6 +477,7 @@ internal object SwipeGesture {
         val t9 = tracker.t9
         tracker.triggered = true
         // 已触发：气泡换成「✓ 动作」的已执行态，预览标识复位（退回区间不应再显示预览）
+        hintPreviewToken = NO_HINT_TOKEN
 
         proceededCancel(chain, event)
 
@@ -502,18 +575,23 @@ internal object SwipeGesture {
 
         ensureLabelCache(view, state.t9)
         if (labelKeys.isEmpty()) return
+        // 文本预计算缓存：几何变了（上面 ensureLabelCache 刚重建 ⇒ 代数变）或配置变了
+        // （进度版本号变）才重算。每帧重算会把「省下来的 String 拼接」原样加回去，是关键判断。
+        //
+        // ⚠️ 不能用 labelTexts.isEmpty() 当「没算过」：所有键都没标签是**合法状态**
+        // （用户把所有绑定都设为隐藏 / 一个都没绑），那样会每帧重算，等于白优化。
+        val mark = markOf(config)
+        if (labelTextsMark != mark) {
+            labelTexts = buildLabelTexts(config)
+            labelTextsMark = mark
+        }
+        if (labelTexts.isEmpty()) return
         preparePaint(view)
 
         var drawn = 0
         for ((key, hit) in labelKeys) {
-            // 优先级最高的已绑定方向（无绑定或只绑了禁用 ⇒ -1，不带箭头）
-            val dir = config.primaryDirection(key)
-            val action = if (dir < 0) SwipeConst.A_NONE else config.actionFor(key, dir)
-            // 标签三态解析（自动=动作短名 / 自定义文字 / 隐藏）交给 SwipeConfig，
-            // 空串即「不绘制」。⚠️ 必须先解析再判空：未绑定但设了自定义标签的键**仍然要画**。
-            val label = config.labelFor(key, action)
-            if (label.isEmpty()) continue
-            val text = if (dir >= 0) SwipeConst.DIR_SHORT[dir] + label else label
+            val text = labelTexts[key] ?: continue
+            if (text.isEmpty()) continue
             drawLabel(canvas, text, hit, view)
             drawn++
         }
@@ -522,6 +600,26 @@ internal object SwipeGesture {
                 "已绘制 $drawn 个按键标签（${view.width}x${view.height}，t9=${state.t9}）"
             }
         }
+    }
+
+    /**
+     * 一次性算出每个键最终要画的文字（含方向箭头前缀）。
+     *
+     * 空串表示「该键不画」。只由 [drawLabels] 在缓存失效时调用，不在热路径上。
+     */
+    private fun buildLabelTexts(config: SwipeConfig): Map<String, String> {
+        val out = HashMap<String, String>(labelKeys.size)
+        for (key in labelKeys.keys) {
+            // 优先级最高的已绑定方向（无绑定或只绑了禁用 ⇒ -1，不带箭头）
+            val dir = config.primaryDirection(key)
+            val action = if (dir < 0) SwipeConst.A_NONE else config.actionFor(key, dir)
+            // 标签三态解析（自动=动作短名 / 自定义文字 / 隐藏）交给 SwipeConfig，
+            // 空串即「不绘制」。⚠️ 必须先解析再判空：未绑定但设了自定义标签的键**仍然要画**。
+            val label = config.labelFor(key, action)
+            if (label.isEmpty()) continue
+            out[key] = if (dir >= 0) SwipeConst.DIR_SHORT[dir] + label else label
+        }
+        return out
     }
 
     private fun ensureLabelCache(view: View, t9: Boolean) {
@@ -537,6 +635,9 @@ internal object SwipeGesture {
         labelHeight = view.height
         labelT9 = t9
         labelKeyCount = keys.size
+        // 键集合已变 ⇒ 旧 labelTexts 里的键可能已失效 / 缺新键，必须让 drawLabels 重算。
+        // 这里自增代数比「在 drawLabels 里对比几何」便宜，且只在该函数真正重建时才发生。
+        labelGeometryGen++
         logOnce("label_geometry:${view.width}x${view.height}:${keys.size}") {
             "标签几何就绪：${keys.size} 键，t9=$t9，尺寸 ${view.width}x${view.height}"
         }
@@ -767,13 +868,19 @@ internal object SwipeGesture {
         labelViewRef = WeakReference(null)
         labelKeys = emptyMap()
         labelT9 = false
+        labelTexts = emptyMap()
+        labelTextsMark = NO_LABEL_MARK
         labelPaintSignature = Long.MIN_VALUE
         loggedOnce.clear()
+        SwipeConfig.invalidate()
     }
 
     /** 配置变化（设置页改动后无需重启，标签在下次绘制时自动重算） */
     fun onConfigMaybeChanged() {
-        // 设置可能改过 → 标签画笔签名失效，迫使下次绘制重新算字号与配色
+        // 设置可能改过 → 配置缓存与预计算的标签文本都要失效
+        SwipeConfig.invalidate()
+        labelTexts = emptyMap()
+        labelTextsMark = NO_LABEL_MARK
         labelPaintSignature = Long.MIN_VALUE
         loggedOnce.clear()
         keyboardViewRef.get()?.postInvalidate()
@@ -787,9 +894,12 @@ internal object SwipeGesture {
         labelViewRef = WeakReference(null)
         labelKeys = emptyMap()
         labelT9 = false
+        labelTexts = emptyMap()
+        labelTextsMark = NO_LABEL_MARK
         labelPaintSignature = Long.MIN_VALUE
         loggedOnce.clear()
         mainHandler.removeCallbacksAndMessages(null)
+        SwipeConfig.invalidate()
     }
 
     // ================================================================ 工具
@@ -807,6 +917,18 @@ internal object SwipeGesture {
 
     private fun dp(view: View, value: Int): Int =
         maxOf(1, Math.round(value * view.resources.displayMetrics.density))
+
+    /**
+     * 预览气泡去重标识：把 (键, 方向, 动作) 压成一个 long。
+     *
+     * 同一个键同一个方向同一个动作 = 同一句话，重复投递毫无意义（气泡内容完全一样，
+     * 只是白占主线程消息队列）。换键 / 换方向 / 换动作才会得到新标识。
+     */
+    private fun hintTokenOf(key: String?, dir: Int, action: Int): Long {
+        if (key == null) return NO_HINT_TOKEN
+        val keyHash = key.hashCode().toLong() and 0xFFFFFL
+        return (keyHash shl 12) or ((dir.toLong() and 0xFL) shl 8) or (action.toLong() and 0xFFL) or 1L
+    }
 
     private inline fun logOnce(key: String, message: () -> String) {
         if (loggedOnce.add(key)) LogUtils.i(TAG, "gesture", message())

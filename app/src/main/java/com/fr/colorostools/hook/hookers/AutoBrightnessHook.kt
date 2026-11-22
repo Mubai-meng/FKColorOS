@@ -71,6 +71,9 @@ internal object AutoBrightnessHook {
     /** 参数轮询周期。每秒读 5 个 remote prefs（内存镜像，非跨进程 IPC），开销可忽略 */
     private const val POLL_INTERVAL_MS = 1000L
 
+    /** 总开关关闭时的空闲轮询周期（线程仍在，只是长睡；见 [startParamWatcher]） */
+    private const val IDLE_POLL_MS = 30_000L
+
     /**
      * ABC 实例。从 `onLuxResultChange` 的 `thisObject` 捕获 —— 该类没有单例，
      * 这是唯一能拿到它的途径。用于参数变化后主动触发一次亮度重算。
@@ -95,6 +98,43 @@ internal object AutoBrightnessHook {
     /** 「控制器未捕获」只提示一次，避免每秒刷日志（见 [triggerRecompute]） */
     @Volatile
     private var warnedNoController = false
+
+    /**
+     * 热路径参数快照。
+     *
+     * [boost] 挂在 `OplusLuxResult#getFinalLux()` 上 —— 每次环境光回调都会被调用（1~10Hz），
+     * 而原实现每次都要 5 次 prefs 读（开关 + 4 个参数）+ 4 次 `coerceIn`。这些参数在一次
+     * 会话内几乎不变，完全没必要每次重读。
+     *
+     * 由 [refreshSnapshot] 在指纹变化时刷新；[boost] 只读这几个 volatile 字段。
+     */
+    private class Params(
+        @JvmField val enabled: Boolean,
+        @JvmField val factor: Float,
+        @JvmField val offset: Float,
+        @JvmField val luxMax: Float,
+        @JvmField val maxGain: Float,
+    )
+
+    /** 参数快照引用（整体替换，天然原子；读侧只取一次引用再拆字段，不会读到撕裂的组合） */
+    @Volatile
+    private var params: Params? = null
+
+    /** 读一次 prefs 组装快照；[boost] 不在热路径做这个 */
+    private fun readParams(): Params = Params(
+        enabled = enabled(),
+        factor = configFactor(),
+        offset = configOffset(),
+        luxMax = configLuxMax(),
+        maxGain = configMaxGain(),
+    )
+
+    /** 刷新快照（指纹变化 / 线程启动时调用） */
+    private fun refreshSnapshot(): Params {
+        val p = readParams()
+        params = p
+        return p
+    }
 
     fun install() {
         val oplusLux = installOplusLux()
@@ -272,14 +312,21 @@ internal object AutoBrightnessHook {
      * 下一秒会再试，不会因为「已经记下新指纹」而永久丢掉这次改动。
      */
     private fun startParamWatcher() {
+        // 先填快照：之后 boost() 在热路径上只读 volatile 引用，不再碰 prefs
         lastFingerprint = fingerprint()
+        refreshSnapshot()
         val t = Thread({
             while (true) {
                 try {
-                    Thread.sleep(POLL_INTERVAL_MS)
+                    // 总开关关闭 ⇒ 长睡。线程不能退（remote prefs 无变更通知，退了就没人能唤醒），
+                    // 但每秒醒一次会让 CPU 进不了深度 idle，直接体现在待机耗电上。
+                    val idle = !enabled()
+                    Thread.sleep(if (idle) IDLE_POLL_MS else POLL_INTERVAL_MS)
                     val fp = fingerprint()
                     if (fp != lastFingerprint && triggerRecompute()) {
                         lastFingerprint = fp
+                        // 参数已生效 ⇒ 刷新热路径快照（boost 的放大参数随之更新）
+                        refreshSnapshot()
                     }
                 } catch (e: InterruptedException) {
                     return@Thread
@@ -468,22 +515,28 @@ internal object AutoBrightnessHook {
      * 负值 / 非有限值是缓冲区无数据的哨兵，绝不放大。
      */
     private fun boost(lux: Float): Float? {
-        if (!enabled()) return null
+        // 热路径：只读一次 volatile 快照引用（原来是 1+4=5 次 prefs 读/次调用）。
+        // 快照不会被写成 null —— install() 与 watcher 都会先 refreshSnapshot()，
+        // 这里兜底再读一次以覆盖「挂在 install 之前就被调用」的极端时序。
+        val p = params ?: refreshSnapshot()
+        if (!p.enabled) return null
         if (!lux.isFinite() || lux < 0f) return null
-        val luxMax = configLuxMax()
+        val luxMax = p.luxMax
         if (lux >= luxMax) return null
         val u = (lux / luxMax).coerceIn(0f, 1f)
         val w = 1f - u
         // 有效增益：强度与「强度上限」取小，且不低于 1（不低于原值）
-        val k = (minOf(configFactor(), configMaxGain()) - 1f).coerceAtLeast(0f)
+        val k = (minOf(p.factor, p.maxGain) - 1f).coerceAtLeast(0f)
         // 补偿不得超过「满增益后距上限的剩余空间」，否则淡出末端会倒挂
-        val offEff = configOffset()
+        val offEff = p.offset
             .coerceAtMost(luxMax * (1f - k))
             .coerceAtLeast(0f) * w
         val out = (lux * (1f + k * w) + offEff).coerceAtMost(luxMax)
         // 可观测：「装上了」≠「被调用」（上一版正是在这里空转而不自知）。
         // 详细日志开启时每 5 次采样打一条，可直接看到原始 / 放大后的 lux。
-        if (LogUtils.isEnabled() && sampleCount.getAndIncrement() % 5 == 0) {
+        // ⚠️ 先取模再判 isEnabled：LogUtils.isEnabled() 内部走 enableProvider（一次 prefs 读），
+        // 原写法每次采样都付这个代价。现在只有「恰好第 5n 次」才判，省掉 4/5。
+        if (sampleCount.getAndIncrement() % 5 == 0 && LogUtils.isEnabled()) {
             LogUtils.i(TAG, "hit", "lux ${lux} -> ${out}（生效上限 ${luxMax}）")
         }
         return out

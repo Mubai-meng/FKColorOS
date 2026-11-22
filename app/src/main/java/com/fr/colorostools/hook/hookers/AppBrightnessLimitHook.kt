@@ -86,8 +86,21 @@ internal object AppBrightnessLimitHook {
     /** 开关指纹轮询周期 */
     private const val POLL_INTERVAL_MS = 1000L
 
-    /** 每多少轮无条件重放一次（自愈 RUS 重载） */
-    private const val SELF_HEAL_TICKS = 30
+    /** 总开关关闭时的空闲轮询周期（线程仍在，只是长睡；见 [startWatcher]） */
+    private const val IDLE_POLL_MS = 30_000L
+
+    /**
+     * 每多少轮无条件重放一次（自愈 RUS 重载）。
+     *
+     * 30 → **300**：RUS 云端更新配置是「一天几次」级别的事件，30 秒一次纯属浪费。
+     * 每次自愈都要遍历所有 App 降亮度规则 / FOSS 段 / 窗口实例逐个反射 get/set，
+     * 而这是跑在 **system_server** 里的。
+     *
+     * 若在意「RUS 重建后最多 5 分钟才自愈」的窗口期，真正的解法是让
+     * `OplusDisplayGlobalConfig#getInstance` 的捕获点在新实例出现时主动 apply ——
+     * 那里已经是新配置诞生的必经之路，比轮询更及时。
+     */
+    private const val SELF_HEAL_TICKS = 300
 
     // ------------------------------------------------------------ 状态
 
@@ -298,6 +311,18 @@ internal object AppBrightnessLimitHook {
      * 指纹只拼 5 个布尔（remote prefs 内存镜像，非 IPC），不变时零动作。
      * 变化时立刻 [apply]；另外每 [SELF_HEAL_TICKS] 轮无条件重放一次，把 RUS 重载后的
      * 新配置对象重新压回「已解锁」状态。
+     *
+     * ## 为什么把「关空闲」做成状态而不是直接退线程
+     *
+     * 线程必须常驻：用户随时可能在设置页把总开关打开，而 remote prefs 没有变更通知 API，
+     * 线程一旦退出就再也没有唤醒它的途径（只能重启作用域）。
+     *
+     * 但常驻 ≠ 每秒唤醒。**总开关关闭时线程转入长睡**（[IDLE_POLL_MS]）：一个每 30 秒醒一次
+     * 的线程几乎不耗电，而每秒醒一次会让 CPU 永远进不了深度 idle —— 这是会真实反映在
+     * 待机耗电曲线上的（system_server 里的常驻定时器尤其敏感）。
+     *
+     * 一个 [IDLE_POLL_MS] 的分辨率对「用户改完设置」来说完全够用：改完设置到切回桌面
+     * 打开设置页看效果，本来就要几秒。
      */
     private fun startWatcher() {
         lastFingerprint = fingerprint()
@@ -305,15 +330,20 @@ internal object AppBrightnessLimitHook {
             var tick = 0
             while (true) {
                 try {
-                    Thread.sleep(POLL_INTERVAL_MS)
+                    // 总开关关闭 ⇒ 长睡，避免空转唤醒（关闭态本来就没有任何需要维护的状态）
+                    val idle = !enabled()
+                    Thread.sleep(if (idle) IDLE_POLL_MS else POLL_INTERVAL_MS)
                     tick++
                     val fp = fingerprint()
                     if (fp != lastFingerprint) {
                         lastFingerprint = fp
+                        // 正在关闭时也必须 apply —— 它负责把改动还原回去（restoreAll）
                         apply()
                         LogUtils.i(TAG, "watch", "开关已变化，重新应用")
-                    } else if (tick % SELF_HEAL_TICKS == 0) {
-                        // 配置可能被 RUS 重建：幂等重放，值不符才写
+                        if (!idle) tick = 0
+                    } else if (!idle && tick % SELF_HEAL_TICKS == 0) {
+                        // 配置可能被 RUS 重建：幂等重放，值不符才写。
+                        // 关闭态跳过：没有改动需要自愈（还原已在关闭那一次 apply 完成）。
                         apply()
                     }
                 } catch (e: InterruptedException) {
@@ -330,11 +360,15 @@ internal object AppBrightnessLimitHook {
     }
 
     private fun fingerprint(): String = buildString {
-        append(if (enabled()) '1' else '0')
-        append(if (subEnabled(AppBrightnessLimitConfig.KEY_APP_REDUCE)) '1' else '0')
-        append(if (subEnabled(AppBrightnessLimitConfig.KEY_FOSS)) '1' else '0')
-        append(if (subEnabled(AppBrightnessLimitConfig.KEY_WINDOW)) '1' else '0')
-        append(if (subEnabled(AppBrightnessLimitConfig.KEY_GLOBAL)) '1' else '0')
+        // 局部缓存总开关：subEnabled() 内部每次都会再读一次总开关，
+        // 原写法 4 次 subEnabled = 9 次 prefs 读/秒。这里直接读子开关，
+        // 总开关状态已由第一位体现（关闭时子开关的值不影响指纹语义）。
+        val on = enabled()
+        append(if (on) '1' else '0')
+        append(if (on && HookEnv.settingBoolean(AppBrightnessLimitConfig.KEY_APP_REDUCE, true)) '1' else '0')
+        append(if (on && HookEnv.settingBoolean(AppBrightnessLimitConfig.KEY_FOSS, true)) '1' else '0')
+        append(if (on && HookEnv.settingBoolean(AppBrightnessLimitConfig.KEY_WINDOW, true)) '1' else '0')
+        append(if (on && HookEnv.settingBoolean(AppBrightnessLimitConfig.KEY_GLOBAL, true)) '1' else '0')
     }
 
     // ------------------------------------------------------------ 应用 / 还原

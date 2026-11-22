@@ -72,6 +72,14 @@ internal object OplusKeyboardHook {
     /** 已判定为「非键盘视图」的类（避免每次都反射找方法） */
     private val nonKeyboardClasses = ConcurrentHashMap.newKeySet<Class<*>>()
 
+    /**
+     * 类形状判定缓存：`"类名#方法名"` → 是否声明了该无参方法。
+     *
+     * 负缓存链路（[isKeyboardView]）对同一个类可能反复问同一个问题，
+     * 而 `getDeclaredMethod` 未命中要构造 `NoSuchMethodException`（填栈很贵）。
+     */
+    private val methodShapeCache = ConcurrentHashMap<String, Boolean>()
+
     /** 已判定为键盘视图的类缓存 */
     @Volatile
     private var keyboardBaseClass: Class<*>? = null
@@ -196,20 +204,48 @@ internal object OplusKeyboardHook {
                     hasNoArgMethod(c, "getSoftKeyboard"))
             if (hit) {
                 keyboardBaseClass = c
+                // 之前可能把它判成过非键盘类（父类链判定），必须撤销，否则负缓存会永久压制
+                nonKeyboardClasses.remove(cls)
                 LogUtils.i(TAG, "isKeyboardView", "识别到键盘视图类：$name")
                 return true
             }
             c = c.superclass
             depth++
         }
-        // 只对 `com.oplus.keyboard` 包内的类记负缓存，避免污染其它 View 子类
-        if (cls.name.startsWith("com.oplus.keyboard")) nonKeyboardClasses.add(cls)
+        // 负缓存要把**整条父类链**都记上，而不是只记自己的类。
+        //
+        // 原实现只在 `com.oplus.keyboard` 包内记负缓存，理由是「避免污染其它 View 子类」。
+        // 但输入法进程里绝大多数 View（候选栏、弹窗、宿主用的 FrameLayout/RecyclerView、
+        // AndroidX 组件）都不在这个包里 ⇒ 它们**每次触摸**都要沿继承链做 12 层字符串比较
+        // 加可能多次 `getDeclaredMethod` 反射。手指滑一次就是上百个触摸事件、重复上百次。
+        //
+        // 记整条链不会误伤：判定结果对「某个类」是确定的 —— 一个类不是键盘视图，
+        // 它的所有实例都不是；而将来真出现新的键盘类，它命中 KNOWN/BODY 判定时上面的
+        // remove(cls) 会把这个类自己的负记录撤销（父类记录保留，因为父类本来就不是键盘类）。
+        var p: Class<*>? = cls
+        var d = 0
+        while (p != null && d < 12) {
+            if (View::class.java.isAssignableFrom(p)) nonKeyboardClasses.add(p)
+            p = p.superclass
+            d++
+        }
         return false
     }
 
-    /** 类是否声明了指定无参方法 */
-    private fun hasNoArgMethod(cls: Class<*>, name: String): Boolean =
-        runCatching { cls.getDeclaredMethod(name); true }.getOrDefault(false)
+    /**
+     * 类是否声明了指定无参方法。
+     *
+     * 结果缓存：负缓存链路里同一个类在一次触摸内可能被检查多次，
+     * `getDeclaredMethod` 未命中会抛 `NoSuchMethodException`（构造异常对象 + 填栈）——
+     * 这比按名查找本身还贵。用 `ConcurrentHashMap` 记住结论，命中后只是一次 Map 查找。
+     */
+    private fun hasNoArgMethod(cls: Class<*>, name: String): Boolean {
+        val key = cls.name + '#' + name
+        methodShapeCache[key]?.let { return it }
+        val v = runCatching { cls.getDeclaredMethod(name); true }.getOrDefault(false)
+        methodShapeCache[key] = v
+        return v
+    }
 
     // ------------------------------------------------------------------ 2. 绘制钩子
 
@@ -406,6 +442,7 @@ internal object OplusKeyboardHook {
     fun reset() {
         keyboardBaseClass = null
         nonKeyboardClasses.clear()
+        methodShapeCache.clear()
         drawHookedClasses.clear()
         selectionHookedClasses.clear()
         keyboardViewRef = WeakReference(null)

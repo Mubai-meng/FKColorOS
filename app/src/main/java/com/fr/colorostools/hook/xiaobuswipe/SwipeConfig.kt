@@ -52,6 +52,14 @@ internal class SwipeConfig private constructor(
 ) {
 
     /**
+     * 快照版本号（每次重建 +1，[DISABLED] 恒为 0）。
+     *
+     * 用途：绘制侧据此判断「预计算的标签文本是否还对应这份配置」，避免每帧重算。
+     * 只用于相等比较，不做排序语义。
+     */
+    val version: Long = nextVersion()
+
+    /**
      * 是否已绑定至少一个「方向」。
      *
      * 注意这里把 [SwipeConst.A_DISABLE] 也算已绑定：禁用某方向的目的正是**吞掉**该方向的
@@ -174,6 +182,11 @@ internal class SwipeConfig private constructor(
         /** 动作 id 集合（校验非法值：设置侧写入脏值时按未绑定处理） */
         private val VALID = SwipeConst.ACTION_IDS.toSet()
 
+        /** 快照版本号发号器（单调递增，仅用于相等比较） */
+        private val versionSeq = java.util.concurrent.atomic.AtomicLong(1L)
+
+        private fun nextVersion(): Long = versionSeq.getAndIncrement()
+
         /** 空配置（功能关闭时复用，避免每次按键都构造） */
         val DISABLED = SwipeConfig(
             enabled = false,
@@ -184,20 +197,69 @@ internal class SwipeConfig private constructor(
             distances = emptyMap(), labels = emptyMap(),
         )
 
+        /**
+         * 缓存时长上限。
+         *
+         * 必须存在：remote prefs 是**只读**的（`getRemotePreferences` 文档明确写明，且没有
+         * 提供任何变更监听 API），所以「设置改了」这件事无法用事件通知到 hook 进程。
+         * [invalidate] 由 IME 生命周期（`onStartInput` / `onConfigurationChanged`）主动触发，
+         * 覆盖了绝大多数场景；TTL 兜住剩下的「改完设置不重新聚焦输入框、继续滑动」。
+         *
+         * 1 秒的代价 = 每秒最多重建 1 次（604 次 prefs 读），而改了设置最迟 1s 生效 ——
+         * 与「不缓存时每帧重建」相比降了约 60 倍（60fps × 604 → 604）。
+         */
+        private const val CACHE_TTL_MS = 1000L
+
+        /** 缓存条目：配置 + 它的构建时刻，**一次 volatile 写**整体替换（避免读到撕裂的组合） */
+        private class CacheEntry(val config: SwipeConfig, val at: Long)
+
+        /** 最近一次构建的快照；null = 需要重建 */
+        @Volatile
+        private var cached: CacheEntry? = null
 
         /**
-         * 取一份配置快照。
+         * 让缓存立即失效（下次 [load] 重建）。
          *
-         * ⚠️ 每次调用都全量构建：本类**没有缓存**。
+         * 调用点：`SwipeGesture.onConfigMaybeChanged` / `onImeChanged` / `reset`。
+         */
+        fun invalidate() {
+            cached = null
+        }
+
+        /**
+         * 取一份配置快照（带缓存）。
          *
-         * 已知代价（实测）：一次构建 = **604 次 prefs 读 + 598 次字符串键拼接**，
-         * 另建 4 个 HashMap 与约 90 个数组。而 [SwipeGesture.drawLabels] 是在**每帧 onDraw**
-         * 里调它 —— 26 键键盘 60fps 下就是每秒 3.6 万次 prefs 读。
-         *
-         * 若后续要优化，正确方向是加 TTL 缓存 + 显式 invalidate（remote prefs 是只读的、
-         * 没有变更监听 API，无法事件驱动），而不是让调用方各自缓存。
+         * 历史包袱：本方法原先每次调用都全量重建，而 `SwipeGesture.drawLabels()` 在
+         * **每帧 onDraw** 里调用它 ⇒ 26 键键盘 60fps 下每秒 36240 次 prefs 读 + 35880 次
+         * 字符串键拼接 + 每秒 240 个 HashMap，纯属白白烧 CPU / 电，还带来 GC 抖动掉帧。
+         * 现在命中缓存时是**一次 volatile 读 + 一次时间比较**。
          */
         fun load(): SwipeConfig {
+            val e = cached
+            if (e != null && android.os.SystemClock.uptimeMillis() - e.at < CACHE_TTL_MS) {
+                return e.config
+            }
+            return reload()
+        }
+
+        /**
+         * 重建并写入缓存。
+         *
+         * `@Synchronized`：绘制线程与触摸线程会同时走到这里（onDraw 与 dispatchTouchEvent），
+         * 不加锁的话两个线程会各重建一份、互相覆盖，白白多付一倍代价。
+         */
+        @Synchronized
+        private fun reload(): SwipeConfig {
+            // 二次检查：抢到锁时可能已被别的线程填好
+            val e = cached
+            if (e != null && android.os.SystemClock.uptimeMillis() - e.at < CACHE_TTL_MS) return e.config
+            val built = build()
+            cached = CacheEntry(built, android.os.SystemClock.uptimeMillis())
+            return built
+        }
+
+        /** 从 remote prefs 全量构建一份快照（无缓存；只由 [reload] 调用） */
+        private fun build(): SwipeConfig {
             if (!HookEnv.settingBoolean(SwipeConst.KEY_ENABLED, false)) return DISABLED
 
             val actions = HashMap<String, IntArray>(40)
