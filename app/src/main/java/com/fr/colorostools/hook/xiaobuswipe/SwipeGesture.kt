@@ -147,6 +147,16 @@ internal object SwipeGesture {
     private var labelWidth = -1
     private var labelHeight = -1
     private var labelKeyCount = -1
+
+    /**
+     * 几何缓存建立时的键盘布局（true = 九宫格）。
+     *
+     * **必须参与缓存有效性判定**：26 键与九宫格的键位坐标完全不同，但两者常在
+     * 同一个视图实例里切换（点「123」/ 切回字母），且面板高宽往往一模一样。
+     * 只比 width/height 会让缓存命中 ⇒ 用 26 键的坐标去画九宫格的标签，标签飘到错误键位。
+     */
+    private var labelT9 = false
+
     /** 标签绘制用的 Paint（复用，避免 onDraw 里反复 new） */
     private val labelPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = android.graphics.Paint.Align.CENTER
@@ -301,8 +311,8 @@ internal object SwipeGesture {
             }
             "按键 ${hit.key}（t9=${hit.t9}）绑定：$sb；键盘 ${width}x$height"
         }
-        // 标签可能因键盘重排而失效，先失效一次
-        invalidateLabelCacheIfNeeded(view)
+        // 标签可能因键盘重排而失效，先失效一次（传真实 t9：同尺寸换布局时必须判出来）
+        invalidateLabelCacheIfNeeded(view, hit.t9)
         return passed
     }
 
@@ -516,7 +526,8 @@ internal object SwipeGesture {
 
     private fun ensureLabelCache(view: View, t9: Boolean) {
         val sameView = labelViewRef.get() === view
-        val sameGeometry = labelWidth == view.width && labelHeight == view.height
+        // t9 必须一起比：同尺寸下 26 键 ↔ 九宫格切换，键位坐标完全不同（见 labelT9 注释）
+        val sameGeometry = labelWidth == view.width && labelHeight == view.height && labelT9 == t9
         if (sameView && sameGeometry && labelKeys.isNotEmpty()) return
         val keys = runCatching { KeyGeometry.collect(view, t9) }.getOrDefault(emptyMap())
         if (keys.isEmpty()) return
@@ -524,15 +535,16 @@ internal object SwipeGesture {
         labelKeys = keys
         labelWidth = view.width
         labelHeight = view.height
+        labelT9 = t9
         labelKeyCount = keys.size
         logOnce("label_geometry:${view.width}x${view.height}:${keys.size}") {
             "标签几何就绪：${keys.size} 键，t9=$t9，尺寸 ${view.width}x${view.height}"
         }
     }
 
-    private fun invalidateLabelCacheIfNeeded(view: View) {
+    private fun invalidateLabelCacheIfNeeded(view: View, t9: Boolean = labelT9) {
         if (labelViewRef.get() === view &&
-            labelWidth == view.width && labelHeight == view.height
+            labelWidth == view.width && labelHeight == view.height && labelT9 == t9
         ) return
         labelKeys = emptyMap()
         labelPaintSignature = Long.MIN_VALUE
@@ -754,6 +766,7 @@ internal object SwipeGesture {
         cachedViewRef = WeakReference(null)
         labelViewRef = WeakReference(null)
         labelKeys = emptyMap()
+        labelT9 = false
         labelPaintSignature = Long.MIN_VALUE
         loggedOnce.clear()
     }
@@ -773,6 +786,7 @@ internal object SwipeGesture {
         cachedViewRef = WeakReference(null)
         labelViewRef = WeakReference(null)
         labelKeys = emptyMap()
+        labelT9 = false
         labelPaintSignature = Long.MIN_VALUE
         loggedOnce.clear()
         mainHandler.removeCallbacksAndMessages(null)

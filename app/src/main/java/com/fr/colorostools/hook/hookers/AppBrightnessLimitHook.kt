@@ -140,6 +140,28 @@ internal object AppBrightnessLimitHook {
     /** 窗口功能实例 → 原始 `mLimitNit`（float；只在名单命中时从 config 复制，需单独还原） */
     private val origWindowInstance = IdentityHashMap<Any, Float>()
 
+    /**
+     * 上面 9 张快照表的互斥锁。
+     *
+     * 这 9 张表被两类线程同时读写：
+     * - **宿主 hook 回调线程**：`onAppEnter` post → [applyDynamicLimit] / [liftWindowInstance]；
+     *   构造器 post → [captureLimitFeature]；
+     * - **本模块 watcher 线程**：每 [SELF_HEAL_TICKS] 轮 → [apply] → `applyXxx()` / `restoreXxx()`。
+     *
+     * `IdentityHashMap` 完全不是线程安全的：并发 `getOrPut` 撞上 `for (… in map)` + `map.clear()`
+     * 会抛 `ConcurrentModificationException`；更糟的是内部桶链被写坏（丢条目 / 成环）。
+     * **丢条目的后果不是崩溃，而是「关掉开关后配置还原不回去」** —— 静默错误，
+     * 用户只会看到「设置关了但 App 还是暗」，且日志里什么都没有。
+     *
+     * 为什么不能直接换 `ConcurrentHashMap`：这 9 张表的语义是「按**对象身份**记原值」，
+     * `ConcurrentHashMap` 走 `equals/hashCode`，DTO 若重写了 equals 就会串键，
+     * 把 A 对象的原值写到 B 对象上，还原时污染无关配置。
+     *
+     * `synchronized` 可重入，故 [apply] 内部再调 [applyDynamicLimit] / [liftWindowInstance]
+     * 不会自锁。
+     */
+    private val snapLock = Any()
+
     // ------------------------------------------------------------ 装配
 
     fun install() {
@@ -329,13 +351,17 @@ internal object AppBrightnessLimitHook {
     private fun apply() {
         val gc = config ?: return
         if (!enabled()) {
-            restoreAll()
+            synchronized(snapLock) { restoreAll() }
             return
         }
-        if (subEnabled(AppBrightnessLimitConfig.KEY_APP_REDUCE)) applyAppReduce(gc) else restoreAppReduce()
-        if (subEnabled(AppBrightnessLimitConfig.KEY_FOSS)) applyFoss(gc) else restoreFoss()
-        if (subEnabled(AppBrightnessLimitConfig.KEY_WINDOW)) applyWindow(gc) else restoreWindow()
-        if (subEnabled(AppBrightnessLimitConfig.KEY_GLOBAL)) applyGlobal(gc) else restoreGlobal()
+        // 四类改动各自读写自己的快照表，全部在 snapLock 内完成（见 snapLock 注释）。
+        // synchronized 可重入：applyGlobal 内部还会调 applyDynamicLimit，不会自锁。
+        synchronized(snapLock) {
+            if (subEnabled(AppBrightnessLimitConfig.KEY_APP_REDUCE)) applyAppReduce(gc) else restoreAppReduce()
+            if (subEnabled(AppBrightnessLimitConfig.KEY_FOSS)) applyFoss(gc) else restoreFoss()
+            if (subEnabled(AppBrightnessLimitConfig.KEY_WINDOW)) applyWindow(gc) else restoreWindow()
+            if (subEnabled(AppBrightnessLimitConfig.KEY_GLOBAL)) applyGlobal(gc) else restoreGlobal()
+        }
     }
 
     /** 关断 App 降亮度规则：每个 `<method>` 段的 `mSwitch`（int）置 0 */
@@ -464,7 +490,8 @@ internal object AppBrightnessLimitHook {
 
         val prim = Reflect.getField(feature, "mPrimaryLimitNit") as? Float
         if (prim != null && prim > 0f && prim < peak) {
-            origFeaturePrimary.getOrPut(feature) { prim }
+            // 写快照表 ⇒ 必须与 watcher 线程的 restoreGlobal() 互斥（它也算遍历这张表）
+            synchronized(snapLock) { origFeaturePrimary.getOrPut(feature) { prim } }
             if (Reflect.setField(feature, "mPrimaryLimitNit", peak)) {
                 LogUtils.i(TAG, "apply", "实例主屏上限 $prim -> $peak nit")
                 Reflect.callDeep(feature, "sendUpdatePowerState")
@@ -477,7 +504,8 @@ internal object AppBrightnessLimitHook {
         if (feature == null) return
         val cur = Reflect.getField(feature, "mLimitNit") as? Float ?: return
         // 先记原值：关掉子开关时要把实例字段也写回，否则会一直钳在 9999（= 中和态）
-        origWindowInstance.getOrPut(feature) { cur }
+        // 写快照表 ⇒ 与 watcher 线程的 restoreWindow() 互斥
+        synchronized(snapLock) { origWindowInstance.getOrPut(feature) { cur } }
         if (cur < WINDOW_CAP_OFF_NIT && Reflect.setField(feature, "mLimitNit", WINDOW_CAP_OFF_NIT)) {
             LogUtils.i(TAG, "apply", "实例窗口上限 $cur -> $WINDOW_CAP_OFF_NIT nit")
         }
