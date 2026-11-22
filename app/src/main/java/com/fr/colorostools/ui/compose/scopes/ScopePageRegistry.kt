@@ -618,9 +618,10 @@ object ScopePageRegistry {
         register(SystemFrameworkSpec)
         // 天气（宿主 com.coloros.weather2）：隐藏广告 / 隐藏全部运营卡片 / 详情页应用内打开
         register(WeatherSpec)
-        // 小布输入法：宿主 com.oplus.keyboard（模糊增强 + 按键下滑快捷键）
+        // 小布输入法：宿主 com.oplus.keyboard（模糊增强 + 按键滑动快捷键）
         // ⚠️ 不把 qwerty/t9 两页放进 treeOrder：同一宿主只占一个顶层节点，
-        //    两页作为 oplus_keyboard 的二级入口（page target=）进入
+        //    两页作为 oplus_keyboard 的二级入口（page target=）进入。
+        //    特殊键卡片已并入这两页（v2.0.0 对齐上游），不再有独立子页
         register(OplusKeyboardSpec)
         register(OplusKeyboardQwertySpec)
         register(OplusKeyboardT9Spec)

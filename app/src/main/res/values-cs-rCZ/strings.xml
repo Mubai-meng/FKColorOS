@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Application -->
-    <string name="xposeddescription">Xposed modul pro rozšířenou optimalizaci ColorOS, zdarma navždy\nJe zakázáno sdílet, vydávat reprintovat, krást, porodávat a jiné nezákonné činnosti\nVývojář: ColorOSTools</string>
+    <string name="xposeddescription">Xposed modul pro rozšířenou optimalizaci ColorOS, zdarma navždy\nJe zakázáno sdílet, vydávat reprintovat, krást, porodávat a jiné nezákonné činnosti\nVývojář: Mubai-meng</string>
     <!-- Nav Menu -->
     <string name="nav_function">Funkce</string>
     <string name="nav_home">Domovská stránka</string>

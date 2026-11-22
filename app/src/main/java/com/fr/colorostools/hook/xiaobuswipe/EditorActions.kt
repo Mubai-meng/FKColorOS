@@ -46,18 +46,38 @@ internal object EditorActions {
     /** 段落/文档动作读取上下文的最大字符数（与参考模块一致） */
     private const val CONTEXT_CHARS = 65536
 
+    /**
+     * ShiftState 状态机类（1.9.18 / 1.8.35 两版同名）。
+     *
+     * 静态字段：`R` = 引擎侧状态、`T` = 键面显示态；值语义 `0=LOWER_CASE / 1=UPPER_CASE /
+     * 2=UPPER_LOCK_CASE`。名字必须是 **dex 真实名**（jadx 里可能显示成 `y` 之外的别名）。
+     */
+    private const val CLS_SHIFT_STATE = "com.oplus.keyboard.input.manager.y"
+
+    /** ShiftState 写入口：`q(int)` 写显示态、`r(int)` 写引擎态并通知 Kernel */
+    private const val CLS_SHIFT_MANAGER = "com.oplus.keyboard.input.manager.r"
+
     /** 剪贴板面板：延迟打开（原生面板经由事件总线 post，需等键盘布局落定） */
     private val mainHandler = Handler(Looper.getMainLooper())
 
     /**
      * 执行动作。
      *
-     * @param view 键盘视图（取 Context / 反查 IME / 定位原生面板容器）
-     * @param key  触发的键（26 键小写字母 / 九宫格数字），用于「输入指定内容」取文本
+     * @param view 键盘视图（取 Context / 反查 IME / 定位原生面板容器 / 合成 Shift 点击）
+     * @param key  触发的键身份（26 键小写字母 / 九宫格数字 / 特殊键 id），用于「输入指定内容」取文本
      * @param t9   该键是否九宫格数字键
-     * @return true = 已执行（调用方据此决定是否给触感反馈）；false = 拒绝或失败
+     * @param action 动作 id
+     * @param dir  触发的方向（[SwipeConst.DIR_DOWN] 等），「输入指定内容」按方向取文本
+     * @return true = 已执行；false = 拒绝或失败
      */
-    fun perform(view: android.view.View?, key: String, t9: Boolean, action: Int, config: SwipeConfig): Boolean {
+    fun perform(
+        view: android.view.View?,
+        key: String,
+        t9: Boolean,
+        action: Int,
+        dir: Int,
+        config: SwipeConfig,
+    ): Boolean {
         if (action == SwipeConst.A_NONE || action == SwipeConst.A_DISABLE) return false
         val ime = ImeRuntime.requireIme(view) ?: run {
             LogUtils.w(TAG, "perform", "无 IME 实例，动作 ${config.actionName(action)} 放弃")
@@ -70,6 +90,14 @@ internal object EditorActions {
                 action == SwipeConst.A_IME_PICKER
             ) {
                 return performImeAction(ime, action)
+            }
+
+            // 大小写切换：也不读写编辑器文本，密码框放行；且必须排在密码检查之前
+            // （上游同样是这个顺序 —— 密码框里切大小写是正常需求）
+            if (action == SwipeConst.A_TOGGLE_CAPS) {
+                val ok = toggleCapsLock(view, ime)
+                LogUtils.i(TAG, "perform", "大小写切换=$ok（键 $key ${SwipeConst.DIR_NAMES[dir]}）")
+                return ok
             }
 
             val info = runCatching { ime.currentInputEditorInfo }.getOrNull()
@@ -95,7 +123,7 @@ internal object EditorActions {
             }
 
             val ok = when {
-                action == SwipeConst.A_INSERT_TEXT -> insertText(ic, config, key, t9)
+                action == SwipeConst.A_INSERT_TEXT -> insertText(ic, config, key, dir)
                 action == SwipeConst.A_PASTE -> paste(ime, ic)
                 action == SwipeConst.A_PASTE_AND_SEND -> pasteAndSend(ime, ic)
                 action == SwipeConst.A_SEND_EXISTING -> sendViaEditorAction(ime, ic)
@@ -107,7 +135,7 @@ internal object EditorActions {
                     document(ic, action)
                 else -> menuAction(ime, ic, menuIdFor(action))
             }
-            LogUtils.i(TAG, "perform", "动作 ${config.actionName(action)}（键 $key t9=$t9）成功=$ok")
+            LogUtils.i(TAG, "perform", "动作 ${config.actionName(action)}（键 $key ${SwipeConst.DIR_NAMES[dir]} t9=$t9）成功=$ok")
             ok
         }.getOrElse {
             LogUtils.e(TAG, "perform", "动作 ${config.actionName(action)} 异常：${it.javaClass.simpleName}: ${it.message}")
@@ -193,16 +221,131 @@ internal object EditorActions {
         }
     }
 
-    /** 自己输入指定文本 */
-    private fun insertText(ic: InputConnection, config: SwipeConfig, key: String, t9: Boolean): Boolean {
-        val text = if (t9) {
-            config.textForT9(key.toIntOrNull() ?: 0)
-        } else {
-            config.textForQwerty(key.firstOrNull() ?: ' ')
-        }
+    /** 自己输入指定文本（按方向取文本：同一个键四个方向可以各存一段） */
+    private fun insertText(ic: InputConnection, config: SwipeConfig, key: String, dir: Int): Boolean {
+        val text = config.textFor(key, dir)
         if (text.isEmpty()) return false
         runCatching { ic.finishComposingText() }
         return runCatching { ic.commitText(text, 1) }.getOrDefault(false)
+    }
+
+    // ---------------------------------------------------------------- 大小写切换
+
+    /** 已发出合成的 Shift 点击（防重入：动作在 view.post 里执行，连续触发可能重叠） */
+    @Volatile
+    private var capsBusy = false
+
+    /**
+     * 大小写模式切换：合成一次（或两次）真实 Shift 点击，走宿主完整链路
+     * （键面刷新 + 引擎大写状态同步）。
+     *
+     * 语义与上游 `toggleCapsLock` 一致：
+     * - 当前**已锁定**（ShiftState == 2）⇒ 点一次回到小写；
+     * - 当前非锁定（小写 / 临时大写）⇒ 点两次，小布据此进入 `UPPER_LOCK_CASE` 持续大写
+     *   （两次之间间隔 150ms；单击只得到「临时大写」，下一个字符打完就掉）。
+     *
+     * 找不到 Shift 键矩形（符号布局、九宫格某些模式）⇒ 退化为直接写状态机，
+     * 只保证引擎状态正确，键面可能不刷新。
+     */
+    private fun toggleCapsLock(view: android.view.View?, ime: InputMethodService?): Boolean {
+        if (capsBusy) return false
+        // 键盘视图优先用传入的；传入为 null 时退回 IME 窗口装饰视图（Shift 键不一定在根上，
+        // 但 findKeyRect 走的是键盘模型的键几何，只要视图能取到模型就行）
+        val keyboard = view ?: runCatching { ime?.window?.window?.decorView }.getOrNull() ?: return false
+        capsBusy = true
+        try {
+            val rect = findKeyRect(keyboard, SwipeConst.K_SHIFT)
+            if (rect == null) {
+                LogUtils.w(TAG, "caps", "未找到 Shift 键矩形，退化为直接写状态机")
+                return setShiftStateDirectly(keyboard, -1)
+            }
+            val current = readShiftState(keyboard)
+            val locked = current == 2
+            val x = (rect[0] + rect[2]) * 0.5f
+            val y = (rect[1] + rect[3]) * 0.5f
+            // 合成触摸必须被 SwipeGesture 忽略，否则连点两次 Shift 会触发别人绑在 Shift 上的动作
+            SwipeGesture.withSynthetic {
+                val now = android.os.SystemClock.uptimeMillis()
+                // 第 1 次：临到大写；第 2 次：小布据此进入 UPPER_LOCK_CASE（持续锁定）
+                sendSyntheticTap(keyboard, x, y, now)
+                if (!locked) sendSyntheticTap(keyboard, x, y, now + 150L)
+            }
+            LogUtils.i(TAG, "caps", "Shift 合成点击 from=$current lock=${!locked}")
+            return true
+        } catch (t: Throwable) {
+            LogUtils.e(TAG, "caps", "大小写切换失败：${t.javaClass.simpleName}: ${t.message}")
+            return false
+        } finally {
+            capsBusy = false
+        }
+    }
+
+    /**
+     * 读当前 ShiftState。
+     *
+     * 小布的点击路径调 `input.manager.r#q(int)` 写 `y.T`，状态机另有一套 `y.R`，
+     * 两者可能不一致 ⇒ 取「任一为 2（`UPPER_LOCK_CASE`）即视为已锁定」，
+     * 避免已锁定时又叠加两次点击（那会回到小写，用户会觉得「点了没反应」）。
+     */
+    private fun readShiftState(keyboard: android.view.View): Int {
+        return runCatching {
+            val cls = Reflect.classOrNull(keyboard.javaClass.classLoader, CLS_SHIFT_STATE) ?: return 0
+            val r = readStaticInt(cls, "R")
+            val t = readStaticInt(cls, "T")
+            if (r == 2 || t == 2) 2 else maxOf(r, t)
+        }.getOrDefault(0)
+    }
+
+    private fun readStaticInt(cls: Class<*>, name: String): Int = runCatching {
+        val f = cls.getDeclaredField(name)
+        f.isAccessible = true
+        f.getInt(null)
+    }.getOrDefault(0)
+
+    private fun sendSyntheticTap(keyboard: android.view.View, x: Float, y: Float, downTime: Long) {
+        val down = android.view.MotionEvent.obtain(downTime, downTime, android.view.MotionEvent.ACTION_DOWN, x, y, 0)
+        val up = android.view.MotionEvent.obtain(downTime, downTime + 40L, android.view.MotionEvent.ACTION_UP, x, y, 0)
+        try {
+            keyboard.dispatchTouchEvent(down)
+            keyboard.dispatchTouchEvent(up)
+        } finally {
+            down.recycle()
+            up.recycle()
+        }
+    }
+
+    /** 在键盘模型的按键列表里找指定键 id 的矩形 `[left, top, right, bottom]` */
+    private fun findKeyRect(keyboard: android.view.View, keyId: String): FloatArray? {
+        val t9 = KeyGeometry.isT9(keyboard)
+        val keys = runCatching { KeyGeometry.collect(keyboard, t9) }.getOrNull() ?: return null
+        val hit = keys[keyId] ?: return null
+        return floatArrayOf(hit.left.toFloat(), hit.top.toFloat(), hit.right.toFloat(), hit.bottom.toFloat())
+    }
+
+    /**
+     * 直接写 ShiftState：同时调 `input.manager.r#q(int)`（显示态）与 `r#r(int)`（引擎态 + Kernel），
+     * 覆盖两套状态字段。`target < 0` = 按当前 `y.R` 取反。
+     *
+     * ⚠️ 这两个方法都是 `input.manager.r` 的**静态**方法（上游 `Method#invoke(null, ...)`），
+     * 用 [Reflect.findMethod]（只查 declaredMethods）即可，不需要 deep。
+     */
+    private fun setShiftStateDirectly(keyboard: android.view.View, target: Int): Boolean {
+        return runCatching {
+            val loader = keyboard.javaClass.classLoader
+            val stateCls = Reflect.classOrNull(loader, CLS_SHIFT_STATE) ?: return false
+            val current = readStaticInt(stateCls, "R")
+            val desired = if (target >= 0) target else if (current == 2) 0 else 2
+
+            val manager = Reflect.classOrNull(loader, CLS_SHIFT_MANAGER) ?: return false
+            val show = Reflect.findMethod(manager, "q", 1) ?: return false
+            show.isAccessible = true
+            show.invoke(null, desired)
+            val state = Reflect.findMethod(manager, "r", 1) ?: return false
+            state.isAccessible = true
+            state.invoke(null, desired)
+            LogUtils.i(TAG, "caps", "ShiftState 直写 $current -> $desired")
+            true
+        }.getOrDefault(false)
     }
 
     // ---------------------------------------------------------------- 粘贴

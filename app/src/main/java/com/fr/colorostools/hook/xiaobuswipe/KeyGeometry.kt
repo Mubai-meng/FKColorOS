@@ -7,18 +7,18 @@ import java.lang.reflect.Field
 /**
  * 键盘按键几何与键位解析。
  *
- * ## 宿主数据结构（1.8.35.17 实证）
+ * ## 宿主数据结构（1.8.35 / 1.9.18 实证，两版结构一致）
  *
  * 键盘视图（`com.oplus.keyboard.input.view.body.r`，继承 `View`）对外暴露两个取键盘模型的方法：
  * - `getSoftKeyboard()` → `com.oplus.keyboard.base.entity.f`（当前键盘模型，T9/26 键共用）
  * - `getNormalSoftKeyboard()` → 同上（兜底）
  *
- * 模型 `f` 里 `f13749l`（源码字段名 `l`）是 `List<com.oplus.keyboard.base.entity.e>`，每个 `e` 是一个
- * 按键定义，其中与几何/键位相关的字段（源码名 → 混淆名）：
+ * 模型 `f` 里字段 `l` 是 `List<com.oplus.keyboard.base.entity.e>`，每个 `e` 是一个按键定义，
+ * 其中与几何/键位相关的字段（源码名 → 混淆名）：
  *
  * | 源码名 | 混淆名 | 含义 |
  * |---|---|---|
- * | `a` | `f13725a` | KeyCode（7..16=数字 0..9，29..54=字母 A..Z） |
+ * | `a` | `f13725a` | KeyCode（7..16=数字 0..9，29..54=字母 A..Z，其余见特殊键表） |
  * | `b` | `f13726b` | 左边界 x |
  * | `c` | `f13727c` | 右边界 x |
  * | `d` | `f13728d` | 上边界 y |
@@ -26,11 +26,17 @@ import java.lang.reflect.Field
  * | `s` | `s` | 键面文字（数字/字母/符号） |
  *
  * `KeyCode` 枚举实测：`K0(7)` … `K9(16)`、`A(29)` … `Z(54)` —— 恰好 `keyCode - 41` 得数字字符、
- * `keyCode + 68` 得大写字母（29→'A'、54→'Z'），这也是参考模块的换算方式，本机反编译核对一致。
+ * `keyCode + 68` 得大写字母（29→'A'、54→'Z'）。
+ *
+ * ## 键身份（v2.0.0 起）
+ * 键身份是三选一的字符串，且**与方向无关**（方向由手势层决定）：
+ * - 26 键字母：`"a"`..`"z"`（小写单字符）
+ * - 九宫格数字：`"2"`..`"9"`（单字符），`t9 = true`
+ * - 特殊键：[SwipeConst.SPECIAL_KEYS] 里的 id（`"del"` / `"enter"` / …），长度 > 1
  *
  * ## 为什么反射而不是直接引用
  * 宿主的 `f` / `e` 是混淆内部类，模块编译期无该类；且混淆名随版本变化，故：
- * - **字段名按源码真实名读**（`Reflect.findField` 从 `getDeclaredFields()` 拿到的就是真实名
+ * - **字段名按源码真实名读**（`Reflect.getField` 从 `getDeclaredFields()` 拿到的就是真实名
  *   `l` / `a` / `b` / `c` / `d` / `e` / `s`，jadx 里的 `f13725a` 是它的重命名展示）；
  * - 取不到就整体降级（返回 null / 空），绝不抛给宿主。
  */
@@ -47,21 +53,44 @@ internal object KeyGeometry {
     private const val F_BOTTOM = "e"
     private const val F_TEXT = "s"
 
-    /** KeyCode：数字 0 的枚举值（K0=7）—— `keyCode - 41` 得字符 '0' */
+    /** KeyCode：数字 0 的枚举值（K0=7）—— `keyCode - 7` 得数字字符 */
     private const val KEYCODE_DIGIT_BASE = 7
 
     /** KeyCode：字母 A 的枚举值（A=29）—— `keyCode + 68` 得字符 'A' */
     private const val KEYCODE_LETTER_BASE = 29
     private const val KEYCODE_LETTER_LAST = 54
 
-    /** 单个按键在视图坐标系里的矩形 + 识别出的键 */
-    class Hit(val key: String, val t9: Boolean, val left: Int, val top: Int, val right: Int, val bottom: Int) {
+    /**
+     * 单个按键在视图坐标系里的矩形 + 识别出的键。
+     *
+     * [key] 是键身份（字母/数字/特殊键 id），[t9] 表示是否九宫格数字键，
+     * [display] 是给提示气泡看的显示名（字母大写、特殊键中文名）。
+     */
+    class Hit(
+        val key: String,
+        val t9: Boolean,
+        val left: Int,
+        val top: Int,
+        val right: Int,
+        val bottom: Int,
+    ) {
         val centerX: Float get() = (left + right) * 0.5f
         val width: Int get() = right - left
+
+        /** 是否特殊键（id 长度 > 1 且命中特殊键表） */
+        val special: Boolean get() = SwipeConst.isSpecial(key)
+
+        /** 提示气泡用的显示名 */
+        val display: String
+            get() = when {
+                special -> SwipeConst.specialLabel(key)
+                t9 -> "九宫格 $key"
+                else -> key.uppercase()
+            }
     }
 
     /**
-     * 命中测试：给定视图内坐标，返回落在哪个已绑定的键上。
+     * 命中测试：给定视图内坐标，返回落在哪个已识别的键上。
      *
      * [t9Mode] 决定数字键是否按九宫格键位解读（26 键布局里的数字行不参与绑定）。
      */
@@ -77,16 +106,18 @@ internal object KeyGeometry {
             val bottom = intField(k, F_BOTTOM, Int.MIN_VALUE)
             if (right <= left || bottom <= top) continue
             if (px < left || px > right || py < top || py > bottom) continue
-            val key = keyOf(k, t9Mode) ?: continue
-            return Hit(key.first, key.second, left, top, right, bottom)
+            val info = keyOf(k, t9Mode) ?: continue
+            return Hit(info.key, info.t9, left, top, right, bottom)
         }
         return null
     }
 
     /**
-     * 收集全部可用的键（绘制按键标签用）：只保留几何有效且能解析出键名的。
+     * 收集全部可用的键（绘制按键标签 / 查找 Shift 键矩形用）。
      *
-     * 返回 `键标识 → 几何`，键标识对 26 键是小写字母、九宫格是数字（与配置键一致）。
+     * 返回 `键身份 → 几何`。键身份**不含方向**：26 键是字母、九宫格是数字、特殊键是 id。
+     * 注意特殊键可能出现于两种键盘，但绝不会同一个身份在同一键盘里重复（除逗号/句号在
+     * 某些布局里同时存在于主键区与符号区 —— 此时后出现的覆盖前者，标签只会画一个，可接受）。
      */
     fun collect(view: Any?, t9Mode: Boolean): Map<String, Hit> {
         val keys = softKeys(view) ?: return emptyMap()
@@ -98,8 +129,8 @@ internal object KeyGeometry {
             val top = intField(k, F_TOP, Int.MIN_VALUE)
             val bottom = intField(k, F_BOTTOM, Int.MIN_VALUE)
             if (right <= left || bottom <= top) continue
-            val key = keyOf(k, t9Mode) ?: continue
-            out[key.first] = Hit(key.first, key.second, left, top, right, bottom)
+            val info = keyOf(k, t9Mode) ?: continue
+            out[info.key] = Hit(info.key, info.t9, left, top, right, bottom)
         }
         return out
     }
@@ -110,10 +141,13 @@ internal object KeyGeometry {
         return list.size
     }
 
+    /** 按键列表长度（标签缓存键用） */
+    fun keyCount(view: Any?) = softKeyCount(view)
+
     /**
      * 当前键盘是否为九宫格模式。
      *
-     * 依据：模型 `f` 的 `f13738a`（源码名 `a`）是 `KeyboardType` 枚举，`T9_PINYIN` / `T9_NUMBER`
+     * 依据：模型 `f` 的字段 `a` 是 `KeyboardType` 枚举，`T9_PINYIN` / `T9_NUMBER`
      * 的序列化名以 `t9` 开头（实测 `T9_PINYIN("t9")`）。取不到时退回视图类名判断
      * （`T9View` / `T9SeparateView`）。
      */
@@ -129,7 +163,7 @@ internal object KeyGeometry {
         return name.contains("T9", ignoreCase = true) || name.contains("nine", ignoreCase = true)
     }
 
-    /** 手写键盘（不参与下滑手势） */
+    /** 手写键盘（不参与滑动手势） */
     fun isHandwriting(view: Any?): Boolean {
         var v = view as? View
         var depth = 0
@@ -160,34 +194,72 @@ internal object KeyGeometry {
 
     private fun softKeys(view: Any?): List<*>? = softKeyList(view)
 
-    /** 单个按键的键名解析：优先 KeyCode，其次键面文字 */
-    private fun keyOf(keyObj: Any, t9Mode: Boolean): Pair<String, Boolean>? {
+    /** 单个按键的键身份解析：优先 KeyCode（含特殊键），其次键面文字 */
+    private fun keyOf(keyObj: Any, t9Mode: Boolean): KeyInfo? {
         val code = intField(keyObj, F_KEY_CODE, Int.MIN_VALUE)
         fromKeyCode(code, t9Mode)?.let { return it }
-        return fromText(Reflect.getField(keyObj, F_TEXT))
+        return fromText(Reflect.getField(keyObj, F_TEXT), t9Mode)
     }
 
-    private fun fromKeyCode(code: Int, t9Mode: Boolean): Pair<String, Boolean>? {
-        if (code in KEYCODE_DIGIT_BASE..16) {
-            val ch = (code + 41).toChar()
+    /** 键身份三元组：id + 是否九宫格数字 */
+    private class KeyInfo(val key: String, val t9: Boolean)
+
+    /**
+     * KeyCode → 键身份。
+     *
+     * **特殊键优先判定**：宿主给功能键的 value 既有正数（DEL=67、ENTER=66、SPACE=62、
+     * CLEAR=28、SYMBOLS1=303）也有负数（SHIFT=-1、SYMBOL=-2、NUMBER=-3、COMMA=-4、
+     * PERIOD=-5、LANG=-6、QUESTION=-11、EXCLAMATION=-12）。这些值不与数字/字母区间重叠，
+     * 但先判特殊键更稳妥（万一某版本把 67 挪进别的语义）。
+     */
+    private fun fromKeyCode(code: Int, t9Mode: Boolean): KeyInfo? {
+        specialKeyId(code)?.let { return KeyInfo(it, false) }
+        if (code in KEYCODE_DIGIT_BASE..(KEYCODE_DIGIT_BASE + 9)) {
+            val ch = (code - KEYCODE_DIGIT_BASE + '0'.code).toChar()
             // 26 键布局的数字行不绑定（只有九宫格才把数字当键位）
             if (!t9Mode || ch < '2') return null
-            return ch.toString() to true
+            return KeyInfo(ch.toString(), true)
         }
         if (code in KEYCODE_LETTER_BASE..KEYCODE_LETTER_LAST) {
-            return (code + 68).toChar().lowercaseChar().toString() to false
+            return KeyInfo((code - KEYCODE_LETTER_BASE + 'a'.code).toChar().toString(), false)
         }
         return null
     }
 
-    private fun fromText(raw: Any?): Pair<String, Boolean>? {
+    /**
+     * 宿主 `KeyCode` 枚举 value → 稳定 keyId。
+     *
+     * 正数取自 1.9.18.17-mkt 的 `KeyCode` 常量，负数为其内置功能键编码。
+     * 这份映射是**唯一**的特殊键身份来源，新增特殊键只改这里 + [SwipeConst.SPECIAL_KEYS]。
+     */
+    private fun specialKeyId(keyCode: Int): String? = when (keyCode) {
+        67 -> SwipeConst.K_DEL            // KeyCode.DEL
+        66 -> SwipeConst.K_ENTER          // KeyCode.ENTER
+        62 -> SwipeConst.K_SPACE          // KeyCode.SPACE
+        28 -> SwipeConst.K_CLEAR          // KeyCode.CLEAR（重输）
+        303 -> SwipeConst.K_SYMBOLS1      // KeyCode.SYMBOLS1（@# 面板）
+        -1 -> SwipeConst.K_SHIFT          // KeyCode.SHIFT
+        -2 -> SwipeConst.K_SYMBOL         // KeyCode.SYMBOL（符号）
+        -3 -> SwipeConst.K_NUMBER         // KeyCode.NUMBER（123）
+        -4 -> SwipeConst.K_COMMA          // KeyCode.COMMA
+        -5 -> SwipeConst.K_PERIOD         // KeyCode.PERIOD
+        -6 -> SwipeConst.K_LANG           // KeyCode.LANG（拼/英）
+        -11 -> SwipeConst.K_QUESTION      // KeyCode.QUESTION
+        -12 -> SwipeConst.K_EXCLAMATION   // KeyCode.EXCLAMATION
+        else -> null
+    }
+
+    /** 键面文字兜底：单字符 `a`..`z` 或九宫格 `2`..`9` */
+    private fun fromText(raw: Any?, t9Mode: Boolean): KeyInfo? {
         if (raw == null) return null
         val text = raw.toString().trim().lowercase()
         if (text.length != 1) return null
         val ch = text[0]
         return when {
-            ch in 'a'..'z' -> ch.toString() to false
-            ch in '2'..'9' -> ch.toString() to true
+            ch in 'a'..'z' -> KeyInfo(ch.toString(), false)
+            // ⚠️ 26 键的数字行不参与绑定：这里也必须判 t9Mode，否则 26 键顶行数字会被
+            // 当成九宫格键命中，导致「在 26 键上把 3 绑成某个动作」这种越界配置生效。
+            ch in '2'..'9' && t9Mode -> KeyInfo(ch.toString(), true)
             else -> null
         }
     }

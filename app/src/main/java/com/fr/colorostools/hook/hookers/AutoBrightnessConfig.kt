@@ -34,7 +34,12 @@ internal object AutoBrightnessConfig {
     const val LUX_MAX_MIN = 5
     const val LUX_MAX_MAX = 80
 
-    /** 结果上限：存百分比（120–260，默认 180），boost 后不超过 生效上限 × 值/100f，防映射曲线跳档 */
+    /**
+     * 强度上限：存百分比（120–260，默认 180）。
+     *
+     * 实际有效增益 `k = min(提升强度, 本值) - 1`，即本值是「放大倍数」的天花板，不是结果的天花板。
+     * 输出本身恒定不超过「生效上限」，所以本值只影响暗部提亮的力度，不会造成曲线跳档。
+     */
     const val KEY_MAX_GAIN = "auto_brightness_boost_max_gain"
     const val MAX_GAIN_DEFAULT = 180
     const val MAX_GAIN_MIN = 120

@@ -7,25 +7,29 @@ import com.fr.colorostools.utils.LogUtils
 import java.lang.ref.WeakReference
 
 /**
- * 按键下滑手势识别 + 按键标签绘制 + 触发提示气泡。
+ * 按键滑动手势识别 + 按键标签绘制 + 触发提示气泡 —— v2.0.0 的四方向模型。
  *
- * ## 手势判定（移植自参考模块 `MainHook#interceptKeyboardTouch`）
+ * ## 手势判定（对齐上游 `MainHook#interceptKeyboardTouch`）
  *
- * 单指按住某个已绑定的键往下滑，超过阈值即触发；触发时给原触摸序列补一个 `ACTION_CANCEL`，
- * 让宿主键盘认为这次点击被取消（否则松手时会照常上屏一个字符）。
+ * 单指按住某个已绑定的键往某个方向滑，超过该方向的阈值即触发；触发时给原触摸序列补一个
+ * `ACTION_CANCEL`，让宿主键盘认为这次点击被取消（否则松手时会照常上屏一个字符）。
  *
- * 判定细节：
- * - **DOWN 时**：命中键 + 该键有绑定 ⇒ 记录起点与阈值；`chain.proceed()` 照常下发（键盘要画按压态）。
- * - **MOVE 时**：纵向位移达到阈值且横向位移不超过容差 ⇒ 触发：
- *   1. 记录 triggered（后续 MOVE/UP 直接吞掉返回 true，不再下发）；
- *   2. `proceedWithCancel`：用 ACTION_CANCEL 副本走一次原方法，清掉宿主的按压状态；
- *   3. 触感反馈（可关）+ 执行动作 + 显示提示气泡。
- * - **UP/CANCEL**：清状态、隐藏气泡。
- * - 多指触摸一律直通（双指输入、手写等不参与）。
+ * 判定流程：
+ * 1. **DOWN**：命中键 + 该键**任一方向**有绑定 ⇒ 记录起点、逐方向动作与阈值；
+ *    `chain.proceed()` 照常下发（键盘要画按压态）。
+ * 2. **MOVE/UP**：
+ *    - 还没锁定方向时：位移 < [SwipeConst.SLOP_DP] ⇒ 认作点击，直通宿主；
+ *      否则先 [resolveDirection] 定方向，该方向未绑定 ⇒ 直通；已绑定 ⇒ **锁定**该方向。
+ *    - 锁定后**一律吞事件**（`return true`）：这是关键 —— 宿主的特殊键（退格上滑删整段、
+ *      空格左右移光标）自带原生手势，不吞的话会和我们的动作同时发生。
+ *    - 按方向取位移（横向看 `|dx|`、纵向看 `|dy|`）与该方向阈值比较：
+ *      `≥ 0.8×阈值` 先出预览气泡，`≥ 阈值` 触发。
+ * 3. **触发**：补发 CANCEL 清按压态 → 触感 → 提示"✓ 动作" → 执行动作
+ *    （[SwipeConst.A_DISABLE] 只吞不执行）。
  *
- * ## 横向容差
- * 26 键：`max(阈值×2.5, 纵向位移×1.2)`；九宫格：`max(阈值×0.9, 纵向位移×0.75)`。
- * 九宫格键更窄更高、下滑操作更"竖"，容差相应收紧（与参考模块一致）。
+ * ## 方向判定
+ * 横向位移必须超过纵向的 [SwipeConst.HORIZONTAL_DOMINANCE] 倍才判左右，否则按纵向；
+ * 纵向再按 `deltaY > 0` 分下滑 / 上滑。这样轻微斜着下滑不会被误判成左/右滑。
  *
  * ## 已触发后吞事件的意义
  * 触发瞬间已经给宿主补发了 CANCEL，宿主不会再收到后续事件；若我们仍把 MOVE 下发，
@@ -35,11 +39,32 @@ internal object SwipeGesture {
 
     private const val TAG = SwipeConst.TAG
 
-    /** 提示气泡预览阈值：滑到 `阈值×0.8` 就先显示"当前键 下滑：动作"（未触发状态） */
+    /** 提示气泡预览阈值：滑到 `阈值×0.8` 就先显示"当前键 方向：动作"（未触发状态） */
     private const val HINT_PREVIEW_RATIO = 0.8f
 
-    /** 触发提示气泡停留时长 */
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
+    /**
+     * 合成触摸标记：**必须在 [onTouch] 最开头早退**。
+     *
+     * [EditorActions] 的「大小写切换」会直接 `dispatchTouchEvent` 派发一对合成的
+     * DOWN/UP 到键盘视图 —— 它同样会经过本 hook。若不早退，合成点击会被当成真实用户手势
+     * （连点两次 Shift 就可能触发别人绑在 Shift 上的滑动动作，递归到动作执行里）。
+     */
+    @Volatile
+    var synthesizing: Boolean = false
+        private set
+
+    /** 在合成触摸期间执行 [block]（内部派发全程被 [onTouch] 忽略） */
+    inline fun <T> withSynthetic(block: () -> T): T {
+        val prev = synthesizing
+        synthesizing = true
+        try {
+            return block()
+        } finally {
+            synthesizing = prev
+        }
+    }
 
     /** 跟踪器状态（单指手势，一个视图一份） */
     private class Tracker {
@@ -47,32 +72,57 @@ internal object SwipeGesture {
         var viewRef: WeakReference<View> = WeakReference(null)
         var downX = 0f
         var downY = 0f
-        var thresholdPx = 1f
+        /** 4 个方向的动作（未绑定 = [SwipeConst.A_NONE]） */
+        val actions = IntArray(SwipeConst.DIR_COUNT)
+        /** 4 个方向的阈值（px，已按物理上限夹过） */
+        val thresholds = FloatArray(SwipeConst.DIR_COUNT)
+        var slopPx = 1f
         var key: String? = null
-        var action = SwipeConst.A_NONE
+        /** 提示气泡的显示名（特殊键 → 中文名，字母 → 大写） */
+        var keyDisplay: String = ""
         var t9 = false
+        /** 该键是否有任一方向绑定（没有就直接直通，不进锁定逻辑） */
+        var anyBinding = false
+        var locked = false
+        var dir = SwipeConst.DIR_DOWN
         var triggered = false
 
         fun begin(v: View, x: Float, y: Float) {
             viewRef = WeakReference(v)
             downX = x
             downY = y
-            thresholdPx = 1f
+            for (d in 0 until SwipeConst.DIR_COUNT) {
+                actions[d] = SwipeConst.A_NONE
+                thresholds[d] = 1f
+            }
+            slopPx = 1f
             key = null
-            action = SwipeConst.A_NONE
+            keyDisplay = ""
             t9 = false
+            anyBinding = false
+            locked = false
+            dir = SwipeConst.DIR_DOWN
             triggered = false
             active = true
         }
 
         fun matches(v: View): Boolean = active && viewRef.get() === v
 
+        fun lock(direction: Int) {
+            locked = true
+            dir = direction
+        }
+
         fun clear() {
             active = false
             key = null
-            action = SwipeConst.A_NONE
+            keyDisplay = ""
             t9 = false
+            anyBinding = false
+            locked = false
+            dir = SwipeConst.DIR_DOWN
             triggered = false
+            for (d in 0 until SwipeConst.DIR_COUNT) actions[d] = SwipeConst.A_NONE
         }
     }
 
@@ -86,7 +136,7 @@ internal object SwipeGesture {
     private var hintRootRef: WeakReference<View> = WeakReference(null)
     private var hintHideTask: Runnable? = null
 
-    /** 键盘类型缓存（视图 → 是否九宫格 / 是否手写），键盘模式切换时靠类名或模型判断，这里按视图缓存 */
+    /** 键盘类型缓存（视图 → 是否九宫格 / 是否手写） */
     private var cachedViewRef: WeakReference<View> = WeakReference(null)
     private var cachedT9 = false
     private var cachedHandwriting = false
@@ -97,7 +147,6 @@ internal object SwipeGesture {
     private var labelWidth = -1
     private var labelHeight = -1
     private var labelKeyCount = -1
-
     /** 标签绘制用的 Paint（复用，避免 onDraw 里反复 new） */
     private val labelPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = android.graphics.Paint.Align.CENTER
@@ -105,7 +154,7 @@ internal object SwipeGesture {
     }
     private var labelPaintSignature = Long.MIN_VALUE
 
-    /** 一次性日志标记（触发键、标签绘制等只在首occurence 记录，避免刷屏） */
+    /** 一次性日志标记（避免刷屏） */
     private val loggedOnce = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     // ================================================================ 手势入口
@@ -116,24 +165,20 @@ internal object SwipeGesture {
      * 返回值语义**严格二态**：
      * - `null` = 本次完全不接管，调用方必须自己 `chain.proceed()`（本方法内部**没有**调用过 proceed）；
      * - 非 null = 最终返回值，调用方原样返回（本方法内部已按需调用过 proceed）。
-     *
-     * 内部所有「已调用 proceed」的路径统一走 [proceeded]，把返回值规整成非 null 的 Boolean
-     * （`dispatchTouchEvent` 恒返回 boolean，理论上不会为 null；万一为 null 按 `false` 处理，
-     * 绝不回到 null 让调用方二次 proceed —— 同一个 Chain 重复 proceed 行为未定义）。
      */
     fun onTouch(chain: io.github.libxposed.api.XposedInterface.Chain, view: View, event: MotionEvent): Boolean? {
+        // 合成触摸（大小写切换派发的）一律不参与手势判定
+        if (synthesizing) return null
+
         val config = SwipeConfig.load()
         if (!config.enabled || !config.hasAnyBinding) {
-            // 功能关闭 / 无任何绑定：清掉残留状态后直通（零开销路径）
             if (tracker.active) tracker.clear()
-            // 诊断日志（一次性）：这条路径以前完全静默，导致「开关开了但下滑没反应」
-            // 无法从日志区分是「钩子没装」还是「一个键都没绑定」。key 里带上两个状态位，
-            // 状态变化时会重新打一条，不刷屏。
             logOnce("skip:${config.enabled}:${config.hasAnyBinding}") {
                 if (!config.enabled) {
-                    "手势直通：下滑开关未开启"
+                    "手势直通：滑动开关未开启"
                 } else {
-                    "手势直通：所有键均未绑定动作（26 键 ${config.bindingCount()} 个 / 九宫格 ${config.t9BindingCount()} 个）"
+                    "手势直通：所有键均未绑定动作（26 键 ${config.bindingCount()} 个 / " +
+                        "九宫格 ${config.t9BindingCount()} 个 / 特殊键 ${config.specialBindingCount()} 个）"
                 }
             }
             return null
@@ -142,7 +187,7 @@ internal object SwipeGesture {
         val actionMasked = event.actionMasked
         val pointerCount = event.pointerCount
 
-        // 手写键盘：不参与下滑（笔迹会与手势冲突），顺手把气泡收掉
+        // 手写键盘：不参与滑动（笔迹会与手势冲突），顺手把气泡收掉
         val state = runtimeState(view)
         if (state.handwriting) {
             if (actionMasked == MotionEvent.ACTION_DOWN || actionMasked == MotionEvent.ACTION_UP) {
@@ -161,7 +206,7 @@ internal object SwipeGesture {
             return null
         }
 
-        // 非 DOWN 且既无绑定也无跟踪状态：直通（快速滑动等会让 MOVE 先于 DOWN 到达）
+        // 非 DOWN 且不是我们正在跟踪的那个视图：直通（快速滑动等会让 MOVE 先于 DOWN 到达）
         if (actionMasked != MotionEvent.ACTION_DOWN && !tracker.matches(view)) {
             return null
         }
@@ -176,17 +221,18 @@ internal object SwipeGesture {
         if (tracker.triggered) {
             if (actionMasked == MotionEvent.ACTION_UP || actionMasked == MotionEvent.ACTION_CANCEL) {
                 tracker.clear()
+                hideHint(SwipeConst.HINT_HIDE_AFTER_UP_MS)
             }
             return true
         }
 
-        if ((actionMasked == MotionEvent.ACTION_MOVE || actionMasked == MotionEvent.ACTION_UP) &&
-            tracker.action != SwipeConst.A_NONE
+        if (actionMasked == MotionEvent.ACTION_MOVE || actionMasked == MotionEvent.ACTION_UP ||
+            actionMasked == MotionEvent.ACTION_CANCEL
         ) {
-            return onMove(chain, view, event, actionMasked)
+            return onMove(chain, view, event, actionMasked, config)
         }
 
-        // 其余情况：下发并处理 up/cancel 收尾
+        // 其余（ACTION_POINTER_* 等，单指下不会出现）：下发并处理收尾
         val r = proceeded(chain)
         if (actionMasked == MotionEvent.ACTION_UP || actionMasked == MotionEvent.ACTION_CANCEL) {
             tracker.clear()
@@ -195,7 +241,7 @@ internal object SwipeGesture {
         return r
     }
 
-    /** DOWN：命中键 → 记录绑定与阈值；无绑定按键直接清掉跟踪 */
+    /** DOWN：命中键 → 逐方向记录动作与阈值；无任何绑定则清掉跟踪、直通 */
     private fun onDown(
         chain: io.github.libxposed.api.XposedInterface.Chain,
         view: View,
@@ -210,107 +256,190 @@ internal object SwipeGesture {
         val passed = proceeded(chain)
 
         val hit = KeyGeometry.hitAt(view, event.x, event.y, state.t9)
-        val action = if (hit == null) SwipeConst.A_NONE else actionOf(config, hit)
-        val thresholdDp = if (state.t9) config.t9ThresholdDp else config.thresholdDp
-        var thresholdPx = dp(view, thresholdDp).toFloat()
-        // 阈值不能超过键盘高度一半（否则永远滑不到）
-        val h = view.height
-        if (h > 0) thresholdPx = minOf(thresholdPx, h * 0.5f)
-
-        tracker.key = hit?.key
-        tracker.action = action
-        tracker.t9 = state.t9
-        tracker.thresholdPx = thresholdPx.coerceAtLeast(1f)
-
-        if (action == SwipeConst.A_NONE) {
+        if (hit == null || !config.hasAnyBinding(hit.key)) {
             tracker.clear()
-        } else {
-            logOnce("bind:${hit?.key}") {
-                "按键 ${hit?.key}（t9=${state.t9}）绑定动作 ${config.actionName(action)}，" +
-                    "阈值 ${thresholdDp}dp / ${thresholdPx.toInt()}px，键盘高 $h"
-            }
-            // 标签可能因键盘重排而失效，先失效一次
-            invalidateLabelCacheIfNeeded(view)
+            return passed
         }
+
+        tracker.key = hit.key
+        tracker.keyDisplay = hit.display
+        tracker.t9 = hit.t9
+        tracker.anyBinding = true
+        tracker.slopPx = dp(view, SwipeConst.SLOP_DP).toFloat().coerceAtLeast(1f)
+
+        val width = view.width
+        val height = view.height
+        var anyAction = false
+        for (d in 0 until SwipeConst.DIR_COUNT) {
+            val action = config.actionFor(hit.key, d)
+            tracker.actions[d] = action
+            if (action != SwipeConst.A_NONE) anyAction = true
+            var px = dp(view, config.distanceFor(hit.key, hit.t9, d)).toFloat()
+            // 物理上限：纵向不超键盘高 60%、横向不超宽 40%，否则手指根本滑不到
+            val horizontal = d == SwipeConst.DIR_LEFT || d == SwipeConst.DIR_RIGHT
+            if (horizontal) {
+                if (width > 0) px = minOf(px, width * SwipeConst.MAX_THRESHOLD_RATIO_HORIZONTAL)
+            } else {
+                if (height > 0) px = minOf(px, height * SwipeConst.MAX_THRESHOLD_RATIO_VERTICAL)
+            }
+            tracker.thresholds[d] = px.coerceAtLeast(1f)
+        }
+
+        if (!anyAction) {
+            tracker.clear()
+            return passed
+        }
+
+        logOnce("bind:${hit.key}") {
+            val sb = StringBuilder()
+            for (d in 0 until SwipeConst.DIR_COUNT) {
+                val a = tracker.actions[d]
+                if (a == SwipeConst.A_NONE) continue
+                if (sb.isNotEmpty()) sb.append('、')
+                sb.append(SwipeConst.DIR_NAMES[d]).append('=').append(config.actionName(a))
+                    .append("(${tracker.thresholds[d].toInt()}px)")
+            }
+            "按键 ${hit.key}（t9=${hit.t9}）绑定：$sb；键盘 ${width}x$height"
+        }
+        // 标签可能因键盘重排而失效，先失效一次
+        invalidateLabelCacheIfNeeded(view)
         return passed
     }
 
-    /** MOVE / UP：达到阈值即触发 */
+    /** MOVE / UP / CANCEL：先定方向并锁定，再按该方向位移判定触发 */
     private fun onMove(
         chain: io.github.libxposed.api.XposedInterface.Chain,
         view: View,
         event: MotionEvent,
         actionMasked: Int,
-    ): Boolean? {
+        config: SwipeConfig,
+    ): Boolean {
         val dx = event.x - tracker.downX
         val dy = event.y - tracker.downY
-        val threshold = tracker.thresholdPx
-        val tolerance = if (tracker.t9) {
-            maxOf(threshold * 0.9f, 0.75f * dy)
-        } else {
-            maxOf(threshold * 2.5f, 1.2f * dy)
+        val absX = kotlin.math.abs(dx)
+        val absY = kotlin.math.abs(dy)
+
+        if (!tracker.locked) {
+            // 位移小于点击容差 ⇒ 认作点击，交还宿主（否则轻点也会被吞，键就按不出来了）
+            val hypot = kotlin.math.hypot(absX, absY)
+            if (hypot < tracker.slopPx) return finishOrProceed(chain, actionMasked)
+
+            val dir = resolveDirection(dx, dy)
+            if (tracker.actions[dir] == SwipeConst.A_NONE) {
+                // 该方向没绑定 —— 但别的方向有绑定，仍要直通让宿主处理自己的原生手势
+                return finishOrProceed(chain, actionMasked)
+            }
+            tracker.lock(dir)
+            logOnce("lock:${tracker.key}:$dir") {
+                "按键 ${tracker.keyDisplay} 锁定方向 ${SwipeConst.DIR_NAMES[dir]}，" +
+                    "动作 ${config.actionName(tracker.actions[dir])}，" +
+                    "阈值 ${tracker.thresholds[dir].toInt()}px"
+            }
         }
 
+        val dir = tracker.dir
+        val horizontal = dir == SwipeConst.DIR_LEFT || dir == SwipeConst.DIR_RIGHT
+        val distance = if (horizontal) absX else absY
+        val threshold = tracker.thresholds[dir]
+
         if (actionMasked == MotionEvent.ACTION_MOVE) {
-            if (dy >= threshold * HINT_PREVIEW_RATIO && dy < threshold && kotlin.math.abs(dx) <= tolerance) {
+            if (distance >= threshold * HINT_PREVIEW_RATIO && distance < threshold) {
                 // 预览：还没到触发线，先告诉用户松手会执行什么
                 val key = tracker.key
-                val act = tracker.action
-                view.post { showHint(view, key, act, triggered = false) }
-            } else if (dy < threshold * HINT_PREVIEW_RATIO) {
+                val display = tracker.keyDisplay
+                val act = tracker.actions[dir]
+                view.post { showHint(view, key, display, dir, act, executed = false) }
+            } else if (distance < threshold * HINT_PREVIEW_RATIO) {
                 view.post { hideHint(0) }
             }
         }
 
-        if (dy >= threshold && kotlin.math.abs(dx) <= tolerance) {
-            return trigger(chain, view, event, actionMasked)
+        if (distance >= threshold) {
+            return trigger(chain, view, event, actionMasked, dir)
         }
 
-        val r = proceeded(chain)
-        if (actionMasked == MotionEvent.ACTION_UP) {
+        // 已锁定方向但未达阈值：**继续吞事件**（屏蔽宿主该方向的原生手势），
+        // UP/CANCEL 时清状态收尾 —— 此时不会执行动作，也不会补上屏字符（用户滑了一段又松手）。
+        if (actionMasked == MotionEvent.ACTION_UP || actionMasked == MotionEvent.ACTION_CANCEL) {
             tracker.clear()
             view.post { hideHint(SwipeConst.HINT_HIDE_AFTER_UP_MS) }
         }
-        return r
+        return true
     }
 
-    /** 触发：补发 CANCEL → 触感 → 动作 → 提示 */
+    /**
+     * 方向判定：横向位移需超过纵向的 [SwipeConst.HORIZONTAL_DOMINANCE] 倍才判左右，
+     * 否则按纵向；纵向 `deltaY > 0` 为下滑、`< 0` 为上滑。
+     */
+    private fun resolveDirection(dx: Float, dy: Float): Int {
+        val absX = kotlin.math.abs(dx)
+        val absY = kotlin.math.abs(dy)
+        return if (absX > absY * SwipeConst.HORIZONTAL_DOMINANCE) {
+            if (dx > 0) SwipeConst.DIR_RIGHT else SwipeConst.DIR_LEFT
+        } else {
+            if (dy > 0) SwipeConst.DIR_DOWN else SwipeConst.DIR_UP
+        }
+    }
+
+    /** 触发：补发 CANCEL → 触感 → 提示 → 动作（[SwipeConst.A_DISABLE] 只吞不执行） */
     private fun trigger(
         chain: io.github.libxposed.api.XposedInterface.Chain,
         view: View,
         event: MotionEvent,
         actionMasked: Int,
+        dir: Int,
     ): Boolean {
-        val action = tracker.action
+        val action = tracker.actions[dir]
         val key = tracker.key ?: ""
+        val display = tracker.keyDisplay
         val t9 = tracker.t9
         tracker.triggered = true
+        // 已触发：气泡换成「✓ 动作」的已执行态，预览标识复位（退回区间不应再显示预览）
 
         proceededCancel(chain, event)
 
         val config = SwipeConfig.load()
         if (config.vibration) {
-            runCatching { view.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS) }
+            runCatching { view.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP) }
         }
 
-        view.post { showHint(view, key, action, triggered = true) }
-        view.post {
-            runCatching {
-                EditorActions.perform(view, key, t9, action, config)
-            }.onFailure {
-                LogUtils.e(TAG, "trigger", "动作执行异常：${it.javaClass.simpleName}: ${it.message}")
+        view.post { showHint(view, key, display, dir, action, executed = true) }
+        if (action != SwipeConst.A_DISABLE) {
+            view.post {
+                runCatching {
+                    EditorActions.perform(view, key, t9, action, dir, config)
+                }.onFailure {
+                    LogUtils.e(TAG, "trigger", "动作执行异常：${it.javaClass.simpleName}: ${it.message}")
+                }
             }
         }
 
-        if (actionMasked == MotionEvent.ACTION_UP) tracker.clear()
+        if (actionMasked == MotionEvent.ACTION_UP) {
+            tracker.clear()
+            view.post { hideHint(SwipeConst.HINT_HIDE_DELAY_MS) }
+        }
         return true
+    }
+
+    /** 未锁定 / 不该接管：下发事件，UP/CANCEL 收尾 */
+    private fun finishOrProceed(
+        chain: io.github.libxposed.api.XposedInterface.Chain,
+        actionMasked: Int,
+    ): Boolean {
+        val r = proceeded(chain)
+        if (actionMasked == MotionEvent.ACTION_UP || actionMasked == MotionEvent.ACTION_CANCEL) {
+            tracker.clear()
+            hideHint(SwipeConst.HINT_HIDE_AFTER_UP_MS)
+        }
+        return r
     }
 
     /**
      * 给宿主补发一个 `ACTION_CANCEL`。
      *
-     * 不能直接 `chain.proceed()`（那会把这次滑动当成点击上屏），也不能只 `return true`（宿主
-     * 的按压态不会被清除，可能出现整键残留高亮）。用副本事件走一次原方法再回收，是唯一干净的做法。
+     * 不能直接 `chain.proceed()`（那会把这次滑动当成点击上屏），也不能只 `return true`
+     * （宿主的按压态不会被清除，可能出现整键残留高亮）。用副本事件走一次原方法再回收，
+     * 是唯一干净的做法。
      */
     private fun proceededCancel(chain: io.github.libxposed.api.XposedInterface.Chain, event: MotionEvent) {
         // 副本：obtain 会复制全部指针信息，改 action 后不影响原事件
@@ -330,7 +459,7 @@ internal object SwipeGesture {
 
     // ================================================================ 键盘状态
 
-    /** 键盘运行态（九宫格 / 手写），按视图缓存 —— 键盘模式切换时视图类或软键列表会变 */
+    /** 键盘运行态（九宫格 / 手写），按视图缓存 */
     private class KeyboardState(val t9: Boolean, val handwriting: Boolean)
 
     private fun runtimeState(view: View): KeyboardState {
@@ -344,22 +473,14 @@ internal object SwipeGesture {
         return KeyboardState(t9, handwriting)
     }
 
-    /** 某键的绑定动作（自定义文本优先已在 SwipeConfig 归一化） */
-    private fun actionOf(config: SwipeConfig, hit: KeyGeometry.Hit): Int {
-        return if (hit.t9) {
-            config.actionForT9(hit.key.toIntOrNull() ?: 0)
-        } else {
-            config.actionForQwerty(hit.key.firstOrNull() ?: ' ')
-        }
-    }
-
     // ================================================================ 按键标签绘制
 
     /**
      * 在键盘视图上绘制各键的绑定短标签（`onDraw` 后置调用）。
      *
-     * 参考模块用「软键几何中心 + 底部内缩」定位标签：标签画在键面右下偏上，避开键字母本身。
-     * 颜色按深浅色切换（夜间浅字+深影，日间深字+浅影），保证在任何键底色上可读。
+     * 一个键面只画**一个**方向的标签（按 [SwipeConst.LABEL_PRIORITY] 取优先级最高的已绑定方向），
+     * 文本 = 方向箭头（`↓` / `↑` / `←` / `→`）+ 动作短名，例如 `↓全选`、`↑撤销`。
+     * 画在键面底部偏上，避开键字母本身；夜间浅字+深影 / 日间深字+浅影。
      */
     fun drawLabels(view: View, canvas: Canvas) {
         val config = SwipeConfig.load()
@@ -375,20 +496,14 @@ internal object SwipeGesture {
 
         var drawn = 0
         for ((key, hit) in labelKeys) {
-            val action = if (hit.t9) {
-                config.actionForT9(key.toIntOrNull() ?: 0)
-            } else {
-                config.actionForQwerty(key.firstOrNull() ?: ' ')
-            }
-            // 标签三态解析（自动=动作短名 / 自定义文字 / 隐藏）统一交给 SwipeConfig，
-            // 空串即「不绘制」：既覆盖「未绑定且未设标签」，也覆盖用户显式选的「隐藏标签」。
-            // ⚠️ 必须先解析再判空：未绑定但设了自定义标签的键**仍然要画**（参考模块同行为）。
-            val text = if (hit.t9) {
-                config.labelForT9(key.toIntOrNull() ?: 0, action)
-            } else {
-                config.labelForQwerty(key.firstOrNull() ?: ' ', action)
-            }
-            if (text.isEmpty()) continue
+            // 优先级最高的已绑定方向（无绑定或只绑了禁用 ⇒ -1，不带箭头）
+            val dir = config.primaryDirection(key)
+            val action = if (dir < 0) SwipeConst.A_NONE else config.actionFor(key, dir)
+            // 标签三态解析（自动=动作短名 / 自定义文字 / 隐藏）交给 SwipeConfig，
+            // 空串即「不绘制」。⚠️ 必须先解析再判空：未绑定但设了自定义标签的键**仍然要画**。
+            val label = config.labelFor(key, action)
+            if (label.isEmpty()) continue
+            val text = if (dir >= 0) SwipeConst.DIR_SHORT[dir] + label else label
             drawLabel(canvas, text, hit, view)
             drawn++
         }
@@ -416,7 +531,9 @@ internal object SwipeGesture {
     }
 
     private fun invalidateLabelCacheIfNeeded(view: View) {
-        if (labelViewRef.get() === view && labelWidth == view.width && labelHeight == view.height) return
+        if (labelViewRef.get() === view &&
+            labelWidth == view.width && labelHeight == view.height
+        ) return
         labelKeys = emptyMap()
         labelPaintSignature = Long.MIN_VALUE
     }
@@ -433,11 +550,9 @@ internal object SwipeGesture {
         labelPaintSignature = signature
         labelPaint.textSize = textSize
         if (night) {
-            // 夜间：浅字 + 深影（深色键底上可读）
             labelPaint.color = 0xEEF5F5F5.toInt()
             labelPaint.setShadowLayer(maxOf(1f, density), 0f, 0f, 0xD9000000.toInt())
         } else {
-            // 日间：深字 + 浅影（浅色键底上可读）
             labelPaint.color = 0xC4555A62.toInt()
             labelPaint.setShadowLayer(maxOf(1f, density), 0f, 0f, 0xE7FFFFFF.toInt())
         }
@@ -446,7 +561,7 @@ internal object SwipeGesture {
     private fun drawLabel(canvas: Canvas, text: String, hit: KeyGeometry.Hit, view: View) {
         if (text.isEmpty()) return
         val base = labelPaint.textSize
-        // 长标签缩字，避免压到相邻键
+        // 长标签缩字，避免压到相邻键（方向箭头会占一个字符位，所以阈值放宽到 4）
         val scale = when {
             text.length >= 4 -> 0.78f
             text.length == 3 -> 0.88f
@@ -463,12 +578,19 @@ internal object SwipeGesture {
     // ================================================================ 提示气泡
 
     /**
-     * 显示触发提示。
+     * 显示触发提示（挂在键盘窗口根上的绝对定位 TextView）。
      *
-     * 气泡挂在键盘所在窗口的根 FrameLayout 上（绝对定位，不参与布局测量），
-     * 位置贴在按下的键上方，避免遮挡键帽。
+     * - 预览（未触发）：`Z ↓全选`（键名 + 方向箭头 + 动作名）
+     * - 已触发：`✓ 全选`；禁用方向时 `✓ 已禁用下滑`
      */
-    private fun showHint(view: View, key: String?, action: Int, triggered: Boolean) {
+    private fun showHint(
+        view: View,
+        key: String?,
+        display: String,
+        dir: Int,
+        action: Int,
+        executed: Boolean,
+    ) {
         val config = SwipeConfig.load()
         if (!config.showHint || action == SwipeConst.A_NONE) {
             hideHint(0)
@@ -480,16 +602,20 @@ internal object SwipeGesture {
         }
         val tv = resolveHintView(view) ?: return
         hintHideTask?.let { tv.removeCallbacks(it) }
+        val dirName = SwipeConst.DIR_NAMES[dir]
         val text = when {
-            triggered && action == SwipeConst.A_DISABLE -> "✓ 已禁用下滑"
-            triggered -> "✓ ${config.actionName(action)}"
-            else -> "${key?.uppercase() ?: "当前键"} 下滑：${config.actionName(action)}"
+            executed && action == SwipeConst.A_DISABLE -> "✓ 已禁用$dirName"
+            executed -> "✓ ${config.actionName(action)}"
+            else -> {
+                val who = display.ifEmpty { key?.uppercase().orEmpty().ifEmpty { "当前键" } }
+                "$who ${SwipeConst.DIR_SHORT[dir]}$dirName：${config.actionName(action)}"
+            }
         }
         tv.text = text
         positionHint(view, tv)
         tv.alpha = 1f
         tv.visibility = View.VISIBLE
-        if (triggered) hideHint(SwipeConst.HINT_HIDE_DELAY_MS)
+        if (executed) hideHint(SwipeConst.HINT_HIDE_DELAY_MS)
     }
 
     /**
@@ -634,6 +760,7 @@ internal object SwipeGesture {
 
     /** 配置变化（设置页改动后无需重启，标签在下次绘制时自动重算） */
     fun onConfigMaybeChanged() {
+        // 设置可能改过 → 标签画笔签名失效，迫使下次绘制重新算字号与配色
         labelPaintSignature = Long.MIN_VALUE
         loggedOnce.clear()
         keyboardViewRef.get()?.postInvalidate()
@@ -656,9 +783,8 @@ internal object SwipeGesture {
     /**
      * 统一的下发封装：`chain.proceed()` 后把返回值规整成非 null 的 Boolean。
      *
-     * `View#dispatchTouchEvent` 声明返回 boolean，`proceed()` 理论上不会给 null；
-     * 但 Chain 的实现可能包装过返回值。这里兜成 `false`，是为了不让 `null` 传回调用方
-     * （调用方约定 `null` = 「我没 proceed 过，你 proceed」，语义会撞车）。
+     * 兜成 `false` 是为了不让 `null` 传回调用方（调用方约定 `null` = 「我没 proceed 过，
+     * 你 proceed」，语义会撞车；同一个 Chain 重复 proceed 行为未定义）。
      */
     private fun proceeded(chain: io.github.libxposed.api.XposedInterface.Chain): Boolean {
         val r = chain.proceed()

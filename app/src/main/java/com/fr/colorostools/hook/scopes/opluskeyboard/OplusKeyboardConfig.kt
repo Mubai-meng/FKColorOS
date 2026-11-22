@@ -17,12 +17,12 @@ internal object OplusKeyboardConfig {
     /** 自定义模糊强度（滑条，50..500，宿主默认 150） */
     const val KEY_BLUR_RADIUS = "oplus_keyboard_blur_radius"
 
-    /** 下滑快捷键总开关（下滑功能的键定义见 `xiaobuswipe/SwipeConst.kt`） */
+    /** 滑动快捷键总开关（上/下/左/右四方向，键定义见 `xiaobuswipe/SwipeConst.kt`） */
     const val KEY_SWIPE_ENABLED = "xiaobu_swipe_enabled"
 
     /** 模糊增强是否开启（hook 侧实时读） */
     fun blurEnabled(): Boolean = HookEnv.settingBoolean(KEY_BLUR_ENABLED, false)
 
-    /** 下滑快捷键是否开启（hook 侧实时读） */
+    /** 滑动快捷键是否开启（hook 侧实时读） */
     fun swipeEnabled(): Boolean = HookEnv.settingBoolean(KEY_SWIPE_ENABLED, false)
 }

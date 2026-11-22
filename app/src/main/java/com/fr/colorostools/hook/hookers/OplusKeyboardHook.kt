@@ -202,11 +202,12 @@ internal object OplusKeyboardHook {
             c = c.superclass
             depth++
         }
-        // 只对「键盘包内」的类做负缓存，避免污染其它 View 子类（如 FrameLayout 等）
+        // 只对 `com.oplus.keyboard` 包内的类记负缓存，避免污染其它 View 子类
         if (cls.name.startsWith("com.oplus.keyboard")) nonKeyboardClasses.add(cls)
         return false
     }
 
+    /** 类是否声明了指定无参方法 */
     private fun hasNoArgMethod(cls: Class<*>, name: String): Boolean =
         runCatching { cls.getDeclaredMethod(name); true }.getOrDefault(false)
 

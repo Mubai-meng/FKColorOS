@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name" translatable="false">FKColorOS</string>
     <!-- Application -->
-    <string name="xposeddescription">ColorOS için gelişmiş optimizasyon sağlayan Xposed modülü, sonsuza dek ücretsiz.\nPaylaşmak, kopyalamak, çalmak ve satmak başta olmak üzere yasadışı kullanımlar yasaktır.\nGeliştirici: ColorOSTools</string>
+    <string name="xposeddescription">ColorOS için gelişmiş optimizasyon sağlayan Xposed modülü, sonsuza dek ücretsiz.\nPaylaşmak, kopyalamak, çalmak ve satmak başta olmak üzere yasadışı kullanımlar yasaktır.\nGeliştirici: Mubai-meng</string>
     <string name="sharedUserLabel" translatable="false">ColorOSTools user</string>
     <!-- Nav Menu -->
     <string name="nav_function">İşlevler</string>

@@ -2,6 +2,7 @@ package com.fr.colorostools.ui.compose.scopes.apps
 
 import com.fr.colorostools.R
 import com.fr.colorostools.hook.HookEnv
+import com.fr.colorostools.hook.hookers.AppBrightnessLimitConfig
 import com.fr.colorostools.hook.hookers.AutoBrightnessConfig
 import com.fr.colorostools.ui.compose.scopes.ScopePageSpec
 import com.fr.colorostools.utils.SettingsPrefs
@@ -75,5 +76,46 @@ val SystemFrameworkSpec = ScopePageSpec(
         summary = ctx.getString(R.string.sysfw_autobr_maxgain_summary),
         valueLabel = { ctx.getString(R.string.sysfw_autobr_percent_value, it) },
         enabled = on,
+    )
+
+    // ---------------------------------------------------------- 解锁 App 亮度限制
+    // 一个总开关 + 四个子开关：子开关默认 true（打开总开关即全部解锁），
+    // 出现「某类 App 仍然偏暗」时可逐项排查。hook 侧读取时同样以 true 为默认，
+    // 见 AppBrightnessLimitConfig 类文档。
+    val appBr = state.getBoolean(AppBrightnessLimitConfig.KEY_ENABLED, false)
+    category(ctx.getString(R.string.sysfw_section_appbr))
+    switch(
+        key = AppBrightnessLimitConfig.KEY_ENABLED,
+        title = ctx.getString(R.string.sysfw_appbr_enable),
+        summary = ctx.getString(R.string.sysfw_appbr_enable_summary),
+        requiredScopes = arrayOf(HookEnv.PKG_SYSTEM_SERVER),
+    )
+    switch(
+        key = AppBrightnessLimitConfig.KEY_APP_REDUCE,
+        title = ctx.getString(R.string.sysfw_appbr_app_reduce),
+        summary = ctx.getString(R.string.sysfw_appbr_app_reduce_summary),
+        default = true,
+        enabled = appBr,
+    )
+    switch(
+        key = AppBrightnessLimitConfig.KEY_FOSS,
+        title = ctx.getString(R.string.sysfw_appbr_foss),
+        summary = ctx.getString(R.string.sysfw_appbr_foss_summary),
+        default = true,
+        enabled = appBr,
+    )
+    switch(
+        key = AppBrightnessLimitConfig.KEY_WINDOW,
+        title = ctx.getString(R.string.sysfw_appbr_window),
+        summary = ctx.getString(R.string.sysfw_appbr_window_summary),
+        default = true,
+        enabled = appBr,
+    )
+    switch(
+        key = AppBrightnessLimitConfig.KEY_GLOBAL,
+        title = ctx.getString(R.string.sysfw_appbr_global),
+        summary = ctx.getString(R.string.sysfw_appbr_global_summary),
+        default = true,
+        enabled = appBr,
     )
 }

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Application -->
-    <string name="xposeddescription">对 ColorOS 进行扩展优化的 Xposed 模块，永久免费\n禁止分享、转载、盗卖以及其他违规用途\n开发者：ColorOSTools</string>
+    <string name="xposeddescription">对 ColorOS 进行扩展优化的 Xposed 模块，永久免费\n禁止分享、转载、盗卖以及其他违规用途\n开发者：Mubai-meng</string>
     <!-- Nav Menu -->
     <string name="nav_function">功能</string>
     <string name="nav_home">主页</string>

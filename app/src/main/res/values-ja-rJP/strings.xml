@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Application -->
-    <string name="xposeddescription">Xposed module for extended optimization of ColorOS, free forever\nIt is forbidden to share, reprint, steal and sell and other illegal purposes\nDeveloper: ColorOSTools</string>
+    <string name="xposeddescription">Xposed module for extended optimization of ColorOS, free forever\nIt is forbidden to share, reprint, steal and sell and other illegal purposes\nDeveloper: Mubai-meng</string>
     <!-- Nav Menu -->
     <string name="nav_function">機能</string>
     <string name="nav_home">ホーム</string>

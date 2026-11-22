@@ -34,14 +34,18 @@ android {
     }
     signingConfigs {
         all {
-            // 2026-10-19：改 V2-only 签名（用户拍板）。
-            // 背景：V1 依赖 SHA-1，本机 JDK 安全配置禁用 SHA-1（jarsigner 实证），签不出；
-            // V2+V3 同时启用时本机 apksigner（33~37 全版本）+ AGP 9.4.1 产物 verify 均报
-            // V2=false（V2 block 实际已写入，是 verify 在 V3 并存时的判定行为），无法同时
-            // 交付两者。本模块 minSdk=30（Android 11+），V2 已覆盖全部目标设备。
+            // 2026-11-22：改 V2+V3 双方案签名（用户要求）。
+            // V1 依赖 SHA-1，本机 JDK 安全配置禁用 SHA-1（jarsigner 实证），签不出 ⇒ 关闭。
+            // 关于 verify 显示 v2=false 的实证结论（2026-11-22 复核）：
+            //   1) 直接解析 APK Signing Block 可见 0x7109871a(V2) 与 0xf05368c0(V3) 两块
+            //      均已真实写入，长度各 1326 字节；
+            //   2) apksigner（34/35/36.1/37 全版本）默认按 minSdk=30 只验 V3，故显示 v2=false；
+            //      加 --min-sdk-version 24 --max-sdk-version 29 强制低区间后，
+            //      v2=true 且 v3=true 同时成立。
+            // ⇒ 双方案真实有效，v2=false 仅是 verify 的 SDK 区间判定显示行为，不是签名缺失。
             enableV1Signing = false
             enableV2Signing = true
-            enableV3Signing = false
+            enableV3Signing = true
             enableV4Signing = null
 
             storeFile = file(rootProject.extra.get("storeFile") as String)
@@ -101,11 +105,11 @@ androidComponents {
     onVariants { variant ->
         // AGP 9：签名方案必须走 variant API —— DSL `signingConfigs { }` 里的
         // enableV1/V2/V3 赋值在新版不再作用于实际签名（2026-10-19 实测只出了 V3，
-        // apksigner 三版本交叉验证一致）。当前策略 = 仅 V2（详见 signingConfigs 注释）。
+        // apksigner 三版本交叉验证一致）。当前策略 = V2+V3 双方案（详见 signingConfigs 注释）。
         variant.signingConfig?.let { sc ->
             sc.enableV1Signing.set(false)
             sc.enableV2Signing.set(true)
-            sc.enableV3Signing.set(false)
+            sc.enableV3Signing.set(true)
         }
         val buildType = variant.buildType ?: "None"
         variant.outputs.forEach { output ->

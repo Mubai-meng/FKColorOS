@@ -3,6 +3,7 @@ package com.fr.colorostools.hook
 import android.annotation.SuppressLint
 import android.util.Log
 import com.fr.colorostools.hook.hookers.AccessibilityEnhanceHook
+import com.fr.colorostools.hook.hookers.AppBrightnessLimitHook
 import com.fr.colorostools.hook.hookers.AutoBrightnessHook
 import com.fr.colorostools.hook.hookers.ExpressCardHook
 import com.fr.colorostools.hook.hookers.FakeScreenHook
@@ -99,6 +100,9 @@ class MainHook : XposedModule() {
         // 自动亮度低照度提升（系统框架页）：挂 ABC#calculateAmbientLux post-hook，
         // 低照度下放大环境光估计，映射/迟滞整链自洽，见 AutoBrightnessHook 类文档
         AutoBrightnessHook.install()
+        // 解锁 App 亮度限制（系统框架页）：改 display_brightness_app_list 派生的配置开关位
+        // （App 降亮度 / FOSS / 窗口上限 / 全局上限），见 AppBrightnessLimitHook 类文档
+        AppBrightnessLimitHook.install()
     }
 
     /**

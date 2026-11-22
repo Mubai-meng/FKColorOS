@@ -226,8 +226,8 @@ fun HomePage(activity: MainActivity, isCurrentPage: Boolean = true) {
         ),
         onRestart = { showRestartMenu = true },
         onAbout = {
-            aboutText = if (settings.getBoolean("hidden_function", false)) "忆清鸣、luckyzyx T"
-            else "忆清鸣、luckyzyx"
+            aboutText = if (settings.getBoolean("hidden_function", false)) "Mubai-meng T"
+            else "Mubai-meng"
             showAbout = true
         },
         onUpdate = { updateClick?.invoke() },
@@ -251,9 +251,9 @@ fun HomePage(activity: MainActivity, isCurrentPage: Boolean = true) {
                     val newValue = !settings.getBoolean("hidden_function", false)
                     settings.set("hidden_function", newValue)
                     aboutText = if (newValue) {
-                        "忆清鸣、luckyzyx T"
+                        "Mubai-meng T"
                     } else {
-                        "忆清鸣、luckyzyx"
+                        "Mubai-meng"
                     }
                 },
                 onDismiss = { showAbout = false },
@@ -274,9 +274,9 @@ fun HomePage(activity: MainActivity, isCurrentPage: Boolean = true) {
                                     val newValue = !settings.getBoolean("hidden_function", false)
                                     settings.set("hidden_function", newValue)
                                     aboutText = if (newValue) {
-                                        "忆清鸣、luckyzyx T"
+                                        "Mubai-meng T"
                                     } else {
-                                        "忆清鸣、luckyzyx"
+                                        "Mubai-meng"
                                     }
                                 },
                             ),

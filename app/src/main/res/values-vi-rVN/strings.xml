@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name" translatable="false">FKColorOS</string>								   
     <!-- Application -->
-    <string name="xposeddescription">Module Xposed cho tiện ích mở rộng và tối ưu hóa ColorOS, miễn phí vĩnh viễn\nCấm chia sẻ, sao chép, ăn cắp và các mục đích sử dụng bất hợp pháp khác\nNhà phát triển: Yiqingming, ColorOSTools</string>
+    <string name="xposeddescription">Module Xposed cho tiện ích mở rộng và tối ưu hóa ColorOS, miễn phí vĩnh viễn\nCấm chia sẻ, sao chép, ăn cắp và các mục đích sử dụng bất hợp pháp khác\nNhà phát triển: Mubai-meng</string>
     <string name="sharedUserLabel" translatable="false">Nguời dùng ColorOSTools</string>
     <!-- Nav Menu -->
     <string name="nav_function">Chức năng</string>
