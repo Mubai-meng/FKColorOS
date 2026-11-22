@@ -1,0 +1,242 @@
+>>>>> Dumping cursor [module_pkg_name, apk_path]
+0 {
+   module_pkg_name=com.luckyzyx.luckytool
+   apk_path=/data/app/~~6_ZBCaTklDOrHly1J7xFPw==/com.luckyzyx.luckytool-iYXHrViGjgPNyb3K9JQDUw==/base.apk
+}
+1 {
+   module_pkg_name=cn.mhook.mhook
+   apk_path=/data/app/~~N06NVqwq8pcMaUdKWnlAXA==/cn.mhook.mhook-Vui0lY-59FLy7wcD9wpKtA==/base.apk
+}
+2 {
+   module_pkg_name=com.FuckColorOS
+   apk_path=/data/app/~~Lj1hckkaH09kqLgMXVqn_Q==/com.FuckColorOS-FE1giy-zjmsb-RTxAjho_w==/base.apk
+}
+3 {
+   module_pkg_name=com.Lwely.vip
+   apk_path=/data/app/~~70bEB85SVjz0xIsb6Y0PMg==/com.Lwely.vip-E17MfhjHpYDo0MdtmE57jg==/base.apk
+}
+4 {
+   module_pkg_name=com.fankes.coloros.notify
+   apk_path=/data/app/~~YUYLaa-OxMcHbx7lBvciuQ==/com.fankes.coloros.notify-VQca2KSj5dVRoUFV8zv8JA==/base.apk
+}
+5 {
+   module_pkg_name=com.flass.layoutinspect
+   apk_path=/data/app/~~M5yoMp0Wm_rnmlWDNAxs4A==/com.flass.layoutinspect-VlTB0k6x06j0MRCq5iQNKQ==/base.apk
+}
+6 {
+   module_pkg_name=com.hg.cleanplay
+   apk_path=/data/app/~~EvL1WyOSFhaNi8mAN4gTHQ==/com.hg.cleanplay-NohEXM84Ye_tk4BPKIWZog==/base.apk
+}
+7 {
+   module_pkg_name=com.jiguro.bettervia
+   apk_path=/data/app/~~AoIfo48ud72iLdaBH3JzXw==/com.jiguro.bettervia-oNKDf18x3z7-dtuopVqNkg==/base.apk
+}
+8 {
+   module_pkg_name=com.mockrun.app
+   apk_path=/data/app/~~HGP7ATb11wu5ijgF4kBKyw==/com.mockrun.app-1R40o4lvQiDA38_s4tFz9w==/base.apk
+}
+9 {
+   module_pkg_name=com.nvmex.networkhelper
+   apk_path=/data/app/~~PBnVPisBm1sJboFr6rR1BQ==/com.nvmex.networkhelper-a1GRGDP0k-kNh2lKPx5kjQ==/base.apk
+}
+10 {
+   module_pkg_name=com.omarea.vtools
+   apk_path=/data/app/~~NLh8yj9Xtr_Nsk0SYaKCwg==/com.omarea.vtools-IaIF-MkjwJEHYNlklgmemA==/base.apk
+}
+11 {
+   module_pkg_name=com.opex.extractor
+   apk_path=/data/app/~~RGFvbU1FPZOYbNTHGG3bVA==/com.opex.extractor-5I6Bq6XyKO7mdxV2Eak0cw==/base.apk
+}
+12 {
+   module_pkg_name=com.qiuyue.moonhook
+   apk_path=/data/app/~~1EVkWMBhINjsEqAR246zrw==/com.qiuyue.moonhook-uALagmkD0eSAbeU9zQXS9w==/base.apk
+}
+13 {
+   module_pkg_name=com.raincat.dolby_rc
+   apk_path=/data/app/~~ido-aOmPOFOrhkm_HZQcCA==/com.raincat.dolby_rc-XwrGcGSucewROryOAk0HgA==/base.apk
+}
+14 {
+   module_pkg_name=com.ss.android.ugc.aweme.yyds
+   apk_path=/data/app/~~5Yoe6Y_LlvgYsCLGjBwOWQ==/com.ss.android.ugc.aweme.yyds-iTXsc85QZ2v2QqIyYovd1A==/base.apk
+}
+15 {
+   module_pkg_name=com.viewblocker.jrsen
+   apk_path=/data/app/~~KATYIhj_o92XqH5iHFn7sw==/com.viewblocker.jrsen-z_j9EKrupNeyT3IVxDi3FA==/base.apk
+}
+16 {
+   module_pkg_name=com.wengui.hook
+   apk_path=/data/app/~~pO56lLo6s2v9dxWheTGrQQ==/com.wengui.hook-vpIEAI28EXnG_i8sh1sd8g==/base.apk
+}
+17 {
+   module_pkg_name=fuckinginput.coloros.baidu
+   apk_path=/data/app/~~eyKoD4neL3CwTMzu7bIzmQ==/fuckinginput.coloros.baidu-w7sfkCPOCepbkm7kDHlINA==/base.apk
+}
+18 {
+   module_pkg_name=io.github.edifierpods
+   apk_path=/data/app/~~qSdmnV754QnZehyEibQwpQ==/io.github.edifierpods-h_0MHX2gBreb4riE2NEC0w==/base.apk
+}
+19 {
+   module_pkg_name=io.github.kwensiu.dpis
+   apk_path=/data/app/~~RIM7d0UpcTP5OtmedhCoiQ==/io.github.kwensiu.dpis-3Iv5Km061lnLx-gTN86T2A==/base.apk
+}
+20 {
+   module_pkg_name=io.github.soclear.edgex
+   apk_path=/data/app/~~o6TtBF96-_JGfTI4vNA2Ow==/io.github.soclear.edgex-kbOGkYVz9UgkLiVM9xfNkw==/base.apk
+}
+21 {
+   module_pkg_name=me.neko.fckvip
+   apk_path=/data/app/~~JVRU-AQ9lsLJzSFOhUvPVw==/me.neko.fckvip-xCn-F0O3J1hqxdqs79vYbA==/base.apk
+}
+22 {
+   module_pkg_name=top.hookvip.pro
+   apk_path=/data/app/~~8gWJfTcU-VTU5pWTKZnZKQ==/top.hookvip.pro-WCH0zEjEUlMWF6oZWeQ-Xg==/base.apk
+}
+23 {
+   module_pkg_name=tornaco.apps.shortx
+   apk_path=/data/app/~~PoNTIudHk41od7R4D-uXhA==/tornaco.apps.shortx-SPp8wtprRane5TLDKeX9JA==/base.apk
+}
+24 {
+   module_pkg_name=com.xinbaog.ayo
+   apk_path=/data/app/~~iG8rg0CvjnI4x6KXS6rgmQ==/com.xinbaog.ayo-_xN0UpQ6_NS1SIb0odKTuw==/base.apk
+}
+25 {
+   module_pkg_name=github.tornaco.android.thanos
+   apk_path=/data/app/~~5KcI2UKQoTHLytLLZfB6Dg==/github.tornaco.android.thanos-ZAPv9qpmNYGoK-jEyyYQAg==/base.apk
+}
+26 {
+   module_pkg_name=io.github.qauxv
+   apk_path=/data/app/~~x3haxK7QToDEFP8E9EO2Mw==/io.github.qauxv-hfzPVd9LcUwDiMB0KmqVYw==/base.apk
+}
+27 {
+   module_pkg_name=me.feimeng.vip
+   apk_path=/data/app/~~4dr4wkSoT4xImaMJGRYx4A==/me.feimeng.vip-rok7p0qL7u9GaXOeXdMwvQ==/base.apk
+}
+28 {
+   module_pkg_name=me.hooknext
+   apk_path=/data/app/~~6bc1AY1tLUWG5Ngjwi4ioA==/me.hooknext-A4kRcYjIhJ7PSzjQ-YKnGQ==/base.apk
+}
+29 {
+   module_pkg_name=com.SplashScreenAdvanced.xposedmodule
+   apk_path=/data/app/~~lrzLecO9MHX4StEEl50X5A==/com.SplashScreenAdvanced.xposedmodule-2T6eXf7Kqix35P71MV3tsQ==/base.apk
+}
+30 {
+   module_pkg_name=io.github.xiaotong6666.fusehide
+   apk_path=/data/app/~~6KaueVMcI_kWFC0TbizapQ==/io.github.xiaotong6666.fusehide-_YQxXoOJ_mgVhvKDyGE9TA==/base.apk
+}
+31 {
+   module_pkg_name=io.github.vstory.apperrors
+   apk_path=/data/app/~~bJ7SIHs9HekjxaVE0UwI7g==/io.github.vstory.apperrors-REJ9TGLl9nAfSSgTvjLyEg==/base.apk
+}
+32 {
+   module_pkg_name=io.github.yylsping.coolapkpurifier
+   apk_path=/data/app/~~1n6mZCdNM-FuzMHSeyUxvg==/io.github.yylsping.coolapkpurifier-yD79W-TurvUtc81QZjThtA==/base.apk
+}
+33 {
+   module_pkg_name=io.github.ldxm666.mapadkiller
+   apk_path=/data/app/~~7XvLdWCWs6jbjBMrv2erNg==/io.github.ldxm666.mapadkiller-4pXRMXZ5NMXl2kSWiv6CZQ==/base.apk
+}
+34 {
+   module_pkg_name=com.tianqianguai.gramsieve
+   apk_path=/data/app/~~YlMKwJyJQBuUIIAgovsBaQ==/com.tianqianguai.gramsieve-6q_nndX6wZAIeve25FEF0w==/base.apk
+}
+35 {
+   module_pkg_name=me.gm.cleaner
+   apk_path=/data/app/~~-73Oea_7aVPTHXKUhFxj2w==/me.gm.cleaner-C0gXegLoeMDy5tufEe11fA==/base.apk
+}
+36 {
+   module_pkg_name=dev.ujhhgtg.wekit
+   apk_path=/data/app/~~MQUiImOkABK9byZQ3Nd1ow==/dev.ujhhgtg.wekit-DalLHN9gQx8xaRj9K3kANw==/base.apk
+}
+37 {
+   module_pkg_name=com.oplusime.panel
+   apk_path=/data/app/~~kyg0BbxVTNQq-np35hfu9w==/com.oplusime.panel-lSZsFV0yKv75SisJXQCNlg==/base.apk
+}
+38 {
+   module_pkg_name=com.bloom.fusionupdater
+   apk_path=/data/app/~~6JTzZt8ATPfrk4AQy0yA6g==/com.bloom.fusionupdater-f6Wce3gA5levkotlmAPkyQ==/base.apk
+}
+39 {
+   module_pkg_name=io.github.kxob.backgesturefix
+   apk_path=/data/app/~~4tfUkYWPNcdpR25Q_qlvMg==/io.github.kxob.backgesturefix-lLt23NdvmcMGKk70Q9b8Nw==/base.apk
+}
+40 {
+   module_pkg_name=com.godviewer.app
+   apk_path=/data/app/~~PMj9vS8LuM0HGlie31F2SA==/com.godviewer.app-cL4CxuA4pFxh_D5QF10gNw==/base.apk
+}
+41 {
+   module_pkg_name=io.github.benbaobaoshigemi.fkoscreen
+   apk_path=/data/app/~~3gUZPQy7iesXjNGmM4YQUQ==/io.github.benbaobaoshigemi.fkoscreen-MbUiEsbrkJddI7IKe4valg==/base.apk
+}
+42 {
+   module_pkg_name=io.github.zhongjitianqianguai.scopeview
+   apk_path=/data/app/~~MnB8o0tZEjx05yOZgohwqA==/io.github.zhongjitianqianguai.scopeview-SHWSzeoubFHaIFsZEK8qeQ==/base.apk
+}
+43 {
+   module_pkg_name=com.fr.colorostools
+   apk_path=/data/app/~~FjvI-qFbDAyReGPe6AfSzw==/com.fr.colorostools-kgurJhLZozsFJKepEh9tCA==/base.apk
+}
+44 {
+   module_pkg_name=com.panl.hook.airetouchunlock
+   apk_path=/data/app/~~mVLmYxH_Qe6lKBfax_xOUA==/com.panl.hook.airetouchunlock-yqsog-23CT3iUJQzJkukaw==/base.apk
+}
+45 {
+   module_pkg_name=com.lime.toolkit
+   apk_path=/data/app/~~EM2n7dc6yLkJaXco7vE4XA==/com.lime.toolkit-IpAc_4Zz-20rVUN1VOnhXg==/base.apk
+}
+46 {
+   module_pkg_name=com.qqtools.yun
+   apk_path=/data/app/~~5dkKnfZAZEDyfZIAem_e7w==/com.qqtools.yun-JWMRkOF-xu7EVE71ZALoHQ==/base.apk
+}
+47 {
+   module_pkg_name=io.github.lo0kie.opluskey
+   apk_path=/data/app/~~ulMpf4QSlfuddeguonqk9Q==/io.github.lo0kie.opluskey-hxMC5clexy8aN73dL2aEoQ==/base.apk
+}
+48 {
+   module_pkg_name=top.chuyb.fakeScreen
+   apk_path=/data/app/~~p7Zl9KIwojKI3pE8ry-eww==/top.chuyb.fakeScreen-xD64PLQ5OwEGsut_SPW3ag==/base.apk
+}
+49 {
+   module_pkg_name=app.xiaobuswipe
+   apk_path=/data/app/~~K192fiJ2GWQKXK9XBizZUA==/app.xiaobuswipe-J8l6zFX9H9AdlJfPfo9fkw==/base.apk
+}
+50 {
+   module_pkg_name=com.loghunter.app
+   apk_path=/data/app/~~xByxxp_TcFQMlvNlWpn5Mw==/com.loghunter.app-Sf26gvmduDjx9g3gM3Zr0Q==/base.apk
+}
+51 {
+   module_pkg_name=com.fuckapp.vip
+   apk_path=/data/app/~~BWOzbkkVnBGEd-Wuh3BcGA==/com.fuckapp.vip-I4uwbQBvvhpYGs7KzoXWoA==/base.apk
+}
+52 {
+   module_pkg_name=com.naipinghook
+   apk_path=/data/app/~~dED5ueLYQNd7lZ8GculsKw==/com.naipinghook-TrfLU7xkp_0Rri_wzyLqUw==/base.apk
+}
+53 {
+   module_pkg_name=com.rikumi.colorosmod
+   apk_path=/data/app/~~YKVkqUrhUKIRcYjeEHkk4g==/com.rikumi.colorosmod-1Sa2H9RcfYX-3MFiJsAMZA==/base.apk
+}
+54 {
+   module_pkg_name=io.github.artifical0.huaweipods.coloros
+   apk_path=/data/app/~~VDi8GXhlKuBdhAr6cBQtAQ==/io.github.artifical0.huaweipods.coloros-lXxB7red4v3iFpdzi-stog==/base.apk
+}
+55 {
+   module_pkg_name=moe.chenxy.edifierpods
+   apk_path=/data/app/~~wpmgUr-YKBcb5crqxGRzRw==/moe.chenxy.edifierpods-E24KA6NDdos6lt04p2y6Fw==/base.apk
+}
+56 {
+   module_pkg_name=io.github.cznorth.rosecard
+   apk_path=/data/app/~~QDmbE_CNpa5sXiQhAeCaWA==/io.github.cznorth.rosecard-1wILB9R7ymQux3Bbx46_SQ==/base.apk
+}
+57 {
+   module_pkg_name=io.github.mangi.glyph
+   apk_path=/data/app/~~bSRfmudaluK9Gu48UcR2oQ==/io.github.mangi.glyph-XOxuGlyyM8uo1gx9E3-VyA==/base.apk
+}
+58 {
+   module_pkg_name=gulu.gulugulu
+   apk_path=/data/app/~~AUpgll0HN4VRwJnctnxf0w==/gulu.gulugulu-mXJVOqLcCW5o0ibD20S4qA==/base.apk
+}
+59 {
+   module_pkg_name=com.re.toolkit
+   apk_path=/data/app/~~Wx2onYxR-8VvCxxL7SQm1g==/com.re.toolkit-1kxhVu2suEy9Z3Uiewt-2w==/base.apk
+}
+<<<<<

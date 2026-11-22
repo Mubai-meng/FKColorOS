@@ -714,7 +714,10 @@ internal object SwipeGesture {
             return
         }
         val tv = resolveHintView(view) ?: return
-        hintHideTask?.let { tv.removeCallbacks(it) }
+        // ⚠️ 必须用 mainHandler 移除：hideHint 把 task post 在 mainHandler 上，
+        // 用 View#removeCallbacks 找的是 ViewRootImpl 的 handler，永远移不掉
+        // （于是旧的隐藏任务仍会按时执行，把刚显示的气泡又藏掉）。
+        hintHideTask?.let { mainHandler.removeCallbacks(it) }
         val dirName = SwipeConst.DIR_NAMES[dir]
         val text = when {
             executed && action == SwipeConst.A_DISABLE -> "✓ 已禁用$dirName"
@@ -831,7 +834,8 @@ internal object SwipeGesture {
 
     private fun hideHint(delayMs: Long) {
         val tv = hintViewRef.get() ?: return
-        hintHideTask?.let { tv.removeCallbacks(it) }
+        // 同上：task 在 mainHandler 上排队，只能用同一个 handler 移除。
+        hintHideTask?.let { mainHandler.removeCallbacks(it) }
         val task = Runnable {
             if (hintViewRef.get() === tv) tv.visibility = View.GONE
         }
@@ -844,10 +848,17 @@ internal object SwipeGesture {
         }
     }
 
-    /** 彻底移除气泡（换 IME 实例 / 键盘重建时） */
+    /**
+     * 彻底移除气泡（换 IME 实例 / 键盘重建时）。
+     *
+     * 只精确移除 [hintHideTask] 这一个 Runnable，不用「清空整个 handler 队列」的写法 ——
+     * 那是核弹级操作，而 [mainHandler] 挂在主 Looper 上、是本模块共享的单例，
+     * 将来任何往它 post 的延迟任务都会被静默抹掉。上面两处 removeCallbacks
+     * 修好 handler 后，精确移除已经足够。
+     */
     private fun clearHint() {
+        hintHideTask?.let { mainHandler.removeCallbacks(it) }
         hintHideTask = null
-        mainHandler.removeCallbacksAndMessages(null)
         val tv = hintViewRef.get()
         if (tv != null) {
             runCatching {
@@ -898,7 +909,9 @@ internal object SwipeGesture {
         labelTextsMark = NO_LABEL_MARK
         labelPaintSignature = Long.MIN_VALUE
         loggedOnce.clear()
-        mainHandler.removeCallbacksAndMessages(null)
+        // 同 clearHint：精确清理隐藏任务，不动共享 handler 的其它队列
+        hintHideTask?.let { mainHandler.removeCallbacks(it) }
+        hintHideTask = null
         SwipeConfig.invalidate()
     }
 

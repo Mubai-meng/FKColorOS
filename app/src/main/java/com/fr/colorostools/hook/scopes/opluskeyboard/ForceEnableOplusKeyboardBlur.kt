@@ -132,6 +132,24 @@ internal object ForceEnableOplusKeyboardBlur {
     @Volatile
     private var lastLoggedRadius = Int.MIN_VALUE
 
+    /**
+     * 模糊半径的 TTL 缓存条目（半径 + 读到的时刻）。
+     *
+     * 为什么不再在 install 时抓一次快照：`setBlurRadius` 是模糊渲染的高频入口，
+     * 每次调 prefs 太贵；但 install 只跑一次，抓快照就意味着「用户改了滑条必须重启键盘进程」。
+     * 折中成 TTL 1s —— 热路径只付一次 volatile 读 + 一次时间比较，改动 1 秒内生效。
+     *
+     * 打包成单一对象整体替换：两个独立 @Volatile 字段分两次写，读者可能读到
+     * 「新时刻 + 旧半径」的撕裂组合。
+     */
+    private class RadiusEntry(val value: Int, val at: Long)
+
+    @Volatile
+    private var radiusEntry: RadiusEntry? = null
+
+    /** 半径缓存有效期 */
+    private const val RADIUS_TTL_MS = 1000L
+
     /** 已装标记（重复 install 直接跳过） */
     private val installed = AtomicBoolean(false)
 
@@ -480,7 +498,6 @@ internal object ForceEnableOplusKeyboardBlur {
             LogUtils.w(TAG, "hookBlurRadius", "$CLS_VIEW_ROOT_MANAGER 不存在（oplus-framework 版本变了？）")
             return false
         }
-        val radius = blurRadius()
         var hooked = 0
         for (m in cls.declaredMethods) {
             if (m.name != "setBlurRadius") continue
@@ -495,9 +512,12 @@ internal object ForceEnableOplusKeyboardBlur {
                                 lastLoggedRadius = requested
                                 LogUtils.i(TAG, "blurRadius", "宿主请求半径 $requested")
                             }
-                            if (requested > 0 && requested != radius) {
+                            // 实时读（TTL 缓存）：滑条一改，下一次请求就用新值，
+                            // 不必等键盘进程重启才生效。
+                            val target = currentRadius()
+                            if (requested > 0 && requested != target) {
                                 val args = chain.args.toTypedArray()
-                                args[0] = radius
+                                args[0] = target
                                 chain.proceed(args)
                             } else {
                                 chain.proceed()
@@ -526,7 +546,7 @@ internal object ForceEnableOplusKeyboardBlur {
                 })
             }
         }
-        if (hooked > 0) LogUtils.i(TAG, "hookBlurRadius", "模糊强度已接管，目标值 $radius")
+        if (hooked > 0) LogUtils.i(TAG, "hookBlurRadius", "模糊强度已接管，当前值 ${currentRadius()}")
         return hooked > 0
     }
 
@@ -541,4 +561,33 @@ internal object ForceEnableOplusKeyboardBlur {
     private fun blurRadius(): Int = HookEnv
         .settingInt(OplusKeyboardConfig.KEY_BLUR_RADIUS, DEFAULT_BLUR_RADIUS)
         .coerceIn(MIN_BLUR_RADIUS, MAX_BLUR_RADIUS)
+
+    /**
+     * 取当前模糊半径（带 [RADIUS_TTL_MS] 缓存）。
+     *
+     * 缓存是为了让 `setBlurRadius` 这个高频入口不必每次都付一次 prefs 读；
+     * 但**不能**像 install 快照那样只在安装时读一次 —— 宿主 `installed` 标记
+     * 只让 [install] 跑一次，没有「重新安装」通道，抓快照就等于用户改滑条后必须重启输入法。
+     */
+    private fun currentRadius(): Int {
+        val e = radiusEntry
+        val now = android.os.SystemClock.uptimeMillis()
+        if (e != null && now - e.at < RADIUS_TTL_MS) return e.value
+        return refreshRadius(now)
+    }
+
+    /**
+     * 重建半径缓存。
+     *
+     * `@Synchronized`：`setBlurRadius` 可能从多个渲染线程进入，不加锁会重复读 prefs。
+     * 二次检查覆盖「抢到锁时已被别人填好」。
+     */
+    @Synchronized
+    private fun refreshRadius(now: Long): Int {
+        val e = radiusEntry
+        if (e != null && now - e.at < RADIUS_TTL_MS) return e.value
+        val v = blurRadius()
+        radiusEntry = RadiusEntry(v, now)
+        return v
+    }
 }

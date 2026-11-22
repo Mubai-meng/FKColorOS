@@ -9,6 +9,7 @@ import com.fr.colorostools.hook.scopes.opluskeyboard.ForceEnableOplusKeyboardBlu
 import com.fr.colorostools.hook.scopes.opluskeyboard.OplusKeyboardConfig
 import com.fr.colorostools.hook.xiaobuswipe.ImeRuntime
 import com.fr.colorostools.hook.xiaobuswipe.SwipeConst
+import com.fr.colorostools.hook.xiaobuswipe.SwipeConfig
 import com.fr.colorostools.hook.xiaobuswipe.SwipeGesture
 import com.fr.colorostools.ref.Reflect
 import com.fr.colorostools.utils.LogUtils
@@ -153,16 +154,24 @@ internal object OplusKeyboardHook {
 
     /**
      * 触摸分发拦截：
-     * 1. 下滑功能关着 ⇒ 直接下放（零开销路径，只读一次 remote prefs）；
+     * 1. 下滑功能关着 ⇒ 直接下放（零开销路径）；
      * 2. 不是键盘视图 ⇒ 下放（判定结果按类缓存，非键盘类永不重复反射）；
      * 3. 是键盘视图 ⇒ 交给 [SwipeGesture]；返回值非 null 时用它，null 表示已内部 proceed。
+     *
+     * ⚠️ 开关判定**走 [SwipeConfig.load] 的缓存**，不要直接读 prefs：
+     * 关闭标志与滑动配置是同一个键（`xiaobu_swipe_enabled`），[SwipeGesture.onTouch]
+     * 紧接着就会 `load()` 一次。直接读 prefs 等于每次触摸白付一次 prefs 读 + 一次
+     * `runCatching` 开销，而 `load()` 命中缓存时只是一次 volatile 读 + 一次时间比较。
+     *
+     * 这里只判 `enabled`、**不判 `hasAnyBinding`**：后者会连带跳过 [SwipeGesture] 里的
+     * tracker 清理路径，开关刚关掉那一刻残留的跟踪状态就清不掉了。
      */
     private fun onDispatchTouch(chain: XposedInterface.Chain): Any? {
         val view = chain.thisObject as? View ?: return chain.proceed()
         val event = chain.args.getOrNull(0) as? MotionEvent ?: return chain.proceed()
 
         return runCatching {
-            if (!OplusKeyboardConfig.swipeEnabled()) return@runCatching chain.proceed()
+            if (!SwipeConfig.load().enabled) return@runCatching chain.proceed()
             if (!isKeyboardView(view)) return@runCatching chain.proceed()
             keyboardViewRef = WeakReference(view)
             // 首次识别出键盘视图时补挂绘制钩子（此时才知道具体类）

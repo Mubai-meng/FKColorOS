@@ -1,0 +1,607 @@
+>>>>> Dumping cursor [app_pkg_name, module_pkg_name, user_id]
+0 {
+   app_pkg_name=com.android.providers.media.module
+   module_pkg_name=io.github.xiaotong6666.fusehide
+   user_id=0
+}
+1 {
+   app_pkg_name=com.android.systemui
+   module_pkg_name=com.SplashScreenAdvanced.xposedmodule
+   user_id=0
+}
+2 {
+   app_pkg_name=mark.via.gp
+   module_pkg_name=com.jiguro.bettervia
+   user_id=0
+}
+3 {
+   app_pkg_name=com.ss.android.ugc.aweme
+   module_pkg_name=com.ss.android.ugc.aweme.yyds
+   user_id=0
+}
+4 {
+   app_pkg_name=com.baidu.input_oppo
+   module_pkg_name=fuckinginput.coloros.baidu
+   user_id=0
+}
+5 {
+   app_pkg_name=com.adguard.android
+   module_pkg_name=com.Lwely.vip
+   user_id=0
+}
+6 {
+   app_pkg_name=com.chan.cwallpaper
+   module_pkg_name=com.Lwely.vip
+   user_id=0
+}
+7 {
+   app_pkg_name=com.energysh.onlinecamera1
+   module_pkg_name=com.Lwely.vip
+   user_id=0
+}
+8 {
+   app_pkg_name=com.microsoft.emmx
+   module_pkg_name=io.github.soclear.edgex
+   user_id=0
+}
+9 {
+   app_pkg_name=com.android.externalstorage
+   module_pkg_name=com.luckyzyx.luckytool
+   user_id=0
+}
+10 {
+   app_pkg_name=com.android.launcher
+   module_pkg_name=com.luckyzyx.luckytool
+   user_id=0
+}
+11 {
+   app_pkg_name=com.android.packageinstaller
+   module_pkg_name=com.luckyzyx.luckytool
+   user_id=0
+}
+12 {
+   app_pkg_name=com.android.settings
+   module_pkg_name=com.luckyzyx.luckytool
+   user_id=0
+}
+13 {
+   app_pkg_name=com.android.systemui
+   module_pkg_name=com.luckyzyx.luckytool
+   user_id=0
+}
+14 {
+   app_pkg_name=com.coloros.filemanager
+   module_pkg_name=com.luckyzyx.luckytool
+   user_id=0
+}
+15 {
+   app_pkg_name=com.coloros.phonemanager
+   module_pkg_name=com.luckyzyx.luckytool
+   user_id=0
+}
+16 {
+   app_pkg_name=com.heytap.market
+   module_pkg_name=com.luckyzyx.luckytool
+   user_id=0
+}
+17 {
+   app_pkg_name=com.heytap.quicksearchbox
+   module_pkg_name=com.luckyzyx.luckytool
+   user_id=0
+}
+18 {
+   app_pkg_name=com.oplus.battery
+   module_pkg_name=com.luckyzyx.luckytool
+   user_id=0
+}
+19 {
+   app_pkg_name=com.oplus.games
+   module_pkg_name=com.luckyzyx.luckytool
+   user_id=0
+}
+20 {
+   app_pkg_name=com.oplus.notificationmanager
+   module_pkg_name=com.luckyzyx.luckytool
+   user_id=0
+}
+21 {
+   app_pkg_name=com.oplus.safecenter
+   module_pkg_name=com.luckyzyx.luckytool
+   user_id=0
+}
+22 {
+   app_pkg_name=com.oplus.screenshot
+   module_pkg_name=com.luckyzyx.luckytool
+   user_id=0
+}
+23 {
+   app_pkg_name=com.oplus.securitypermission
+   module_pkg_name=com.luckyzyx.luckytool
+   user_id=0
+}
+24 {
+   app_pkg_name=system
+   module_pkg_name=com.luckyzyx.luckytool
+   user_id=0
+}
+25 {
+   app_pkg_name=com.android.systemui
+   module_pkg_name=tornaco.apps.shortx
+   user_id=0
+}
+26 {
+   app_pkg_name=system
+   module_pkg_name=tornaco.apps.shortx
+   user_id=0
+}
+27 {
+   app_pkg_name=com.heytap.themestore
+   module_pkg_name=me.feimeng.vip
+   user_id=0
+}
+28 {
+   app_pkg_name=com.joke.chongya
+   module_pkg_name=me.hooknext
+   user_id=0
+}
+29 {
+   app_pkg_name=com.quark.clouddrive
+   module_pkg_name=me.hooknext
+   user_id=0
+}
+30 {
+   app_pkg_name=com.luna.music
+   module_pkg_name=com.qiuyue.moonhook
+   user_id=0
+}
+31 {
+   app_pkg_name=com.tencent.mobileqq
+   module_pkg_name=io.github.qauxv
+   user_id=0
+}
+32 {
+   app_pkg_name=com.phoenix.read
+   module_pkg_name=com.hg.cleanplay
+   user_id=0
+}
+33 {
+   app_pkg_name=com.android.systemui
+   module_pkg_name=com.fankes.coloros.notify
+   user_id=0
+}
+34 {
+   app_pkg_name=system
+   module_pkg_name=com.fankes.coloros.notify
+   user_id=0
+}
+35 {
+   app_pkg_name=com.coolapk.market
+   module_pkg_name=io.github.kwensiu.dpis
+   user_id=0
+}
+36 {
+   app_pkg_name=system
+   module_pkg_name=io.github.kwensiu.dpis
+   user_id=0
+}
+37 {
+   app_pkg_name=com.netease.cloudmusic
+   module_pkg_name=com.raincat.dolby_rc
+   user_id=0
+}
+38 {
+   app_pkg_name=android
+   module_pkg_name=com.nvmex.networkhelper
+   user_id=0
+}
+39 {
+   app_pkg_name=com.android.phone
+   module_pkg_name=com.nvmex.networkhelper
+   user_id=0
+}
+40 {
+   app_pkg_name=com.oplus.engineernetwork
+   module_pkg_name=com.nvmex.networkhelper
+   user_id=0
+}
+41 {
+   app_pkg_name=com.oplus.subsys
+   module_pkg_name=com.nvmex.networkhelper
+   user_id=0
+}
+42 {
+   app_pkg_name=system
+   module_pkg_name=github.tornaco.android.thanos
+   user_id=0
+}
+43 {
+   app_pkg_name=system
+   module_pkg_name=io.github.vstory.apperrors
+   user_id=0
+}
+44 {
+   app_pkg_name=com.coolapk.market
+   module_pkg_name=io.github.yylsping.coolapkpurifier
+   user_id=0
+}
+45 {
+   app_pkg_name=com.autonavi.minimap
+   module_pkg_name=io.github.ldxm666.mapadkiller
+   user_id=0
+}
+46 {
+   app_pkg_name=org.telegram.messenger
+   module_pkg_name=com.tianqianguai.gramsieve
+   user_id=0
+}
+47 {
+   app_pkg_name=com.tencent.mm
+   module_pkg_name=dev.ujhhgtg.wekit
+   user_id=0
+}
+48 {
+   app_pkg_name=com.android.providers.media.module
+   module_pkg_name=me.gm.cleaner
+   user_id=0
+}
+49 {
+   app_pkg_name=com.oplus.ota
+   module_pkg_name=com.opex.extractor
+   user_id=0
+}
+50 {
+   app_pkg_name=com.oplus.ota
+   module_pkg_name=com.bloom.fusionupdater
+   user_id=0
+}
+51 {
+   app_pkg_name=com.autonavi.minimap
+   module_pkg_name=com.mockrun.app
+   user_id=0
+}
+52 {
+   app_pkg_name=com.baidu.BaiduMap
+   module_pkg_name=com.mockrun.app
+   user_id=0
+}
+53 {
+   app_pkg_name=com.heytap.cloud
+   module_pkg_name=com.luckyzyx.luckytool
+   user_id=0
+}
+54 {
+   app_pkg_name=com.android.settings
+   module_pkg_name=com.FuckColorOS
+   user_id=0
+}
+55 {
+   app_pkg_name=com.coloros.translate
+   module_pkg_name=com.FuckColorOS
+   user_id=0
+}
+56 {
+   app_pkg_name=com.oplus.wallpapers
+   module_pkg_name=com.FuckColorOS
+   user_id=0
+}
+57 {
+   app_pkg_name=com.android.launcher
+   module_pkg_name=com.FuckColorOS
+   user_id=0
+}
+58 {
+   app_pkg_name=com.coloros.sceneservice
+   module_pkg_name=com.FuckColorOS
+   user_id=0
+}
+59 {
+   app_pkg_name=com.oplus.metis
+   module_pkg_name=com.FuckColorOS
+   user_id=0
+}
+60 {
+   app_pkg_name=com.android.systemui
+   module_pkg_name=com.FuckColorOS
+   user_id=0
+}
+61 {
+   app_pkg_name=com.oplus.safecenter
+   module_pkg_name=com.FuckColorOS
+   user_id=0
+}
+62 {
+   app_pkg_name=com.oplus.pscanvas
+   module_pkg_name=com.FuckColorOS
+   user_id=0
+}
+63 {
+   app_pkg_name=system
+   module_pkg_name=com.FuckColorOS
+   user_id=0
+}
+64 {
+   app_pkg_name=com.oplus.metis
+   module_pkg_name=com.fr.colorostools
+   user_id=0
+}
+65 {
+   app_pkg_name=com.android.settings
+   module_pkg_name=com.fr.colorostools
+   user_id=0
+}
+66 {
+   app_pkg_name=com.android.launcher
+   module_pkg_name=com.fr.colorostools
+   user_id=0
+}
+67 {
+   app_pkg_name=com.coloros.weather2
+   module_pkg_name=com.fr.colorostools
+   user_id=0
+}
+68 {
+   app_pkg_name=com.coloros.gallery3d
+   module_pkg_name=com.panl.hook.airetouchunlock
+   user_id=0
+}
+69 {
+   app_pkg_name=com.tencent.mobileqq
+   module_pkg_name=com.lime.toolkit
+   user_id=0
+}
+70 {
+   app_pkg_name=com.tencent.mobileqq
+   module_pkg_name=com.qqtools.yun
+   user_id=0
+}
+71 {
+   app_pkg_name=system
+   module_pkg_name=io.github.lo0kie.opluskey
+   user_id=0
+}
+72 {
+   app_pkg_name=com.oplus.gesture
+   module_pkg_name=io.github.lo0kie.opluskey
+   user_id=0
+}
+73 {
+   app_pkg_name=system
+   module_pkg_name=com.fr.colorostools
+   user_id=0
+}
+74 {
+   app_pkg_name=com.oplus.keyboard
+   module_pkg_name=app.xiaobuswipe
+   user_id=0
+}
+75 {
+   app_pkg_name=com.oplus.keyboard
+   module_pkg_name=com.fr.colorostools
+   user_id=0
+}
+76 {
+   app_pkg_name=cn.wyyidc.lqyx
+   module_pkg_name=io.github.kwensiu.dpis
+   user_id=0
+}
+77 {
+   app_pkg_name=com.android.mms
+   module_pkg_name=io.github.kwensiu.dpis
+   user_id=0
+}
+78 {
+   app_pkg_name=com.wujie.osconnect
+   module_pkg_name=com.wengui.hook
+   user_id=0
+}
+79 {
+   app_pkg_name=com.xhey.xcamera
+   module_pkg_name=com.fuckapp.vip
+   user_id=0
+}
+80 {
+   app_pkg_name=cn.trinea.android.developertools
+   module_pkg_name=com.fuckapp.vip
+   user_id=0
+}
+81 {
+   app_pkg_name=com.mfcloudcalculate.networkdisk
+   module_pkg_name=com.wengui.hook
+   user_id=0
+}
+82 {
+   app_pkg_name=com.wujie.osconnect
+   module_pkg_name=com.fuckapp.vip
+   user_id=0
+}
+83 {
+   app_pkg_name=com.mfcloudcalculate.networkdisk
+   module_pkg_name=com.fuckapp.vip
+   user_id=0
+}
+84 {
+   app_pkg_name=info.muge.appshare
+   module_pkg_name=com.fuckapp.vip
+   user_id=0
+}
+85 {
+   app_pkg_name=com.larus.nova
+   module_pkg_name=com.fuckapp.vip
+   user_id=0
+}
+86 {
+   app_pkg_name=com.av.playground
+   module_pkg_name=com.fuckapp.vip
+   user_id=0
+}
+87 {
+   app_pkg_name=com.iudesk.android.photo.editor
+   module_pkg_name=com.fuckapp.vip
+   user_id=0
+}
+88 {
+   app_pkg_name=space.xinzhi.sleep
+   module_pkg_name=com.fuckapp.vip
+   user_id=0
+}
+89 {
+   app_pkg_name=com.MobileTicket
+   module_pkg_name=top.hookvip.pro
+   user_id=0
+}
+90 {
+   app_pkg_name=com.coloros.weather2
+   module_pkg_name=com.rikumi.colorosmod
+   user_id=0
+}
+91 {
+   app_pkg_name=com.oplus.wallpapers
+   module_pkg_name=com.rikumi.colorosmod
+   user_id=0
+}
+92 {
+   app_pkg_name=system
+   module_pkg_name=com.rikumi.colorosmod
+   user_id=0
+}
+93 {
+   app_pkg_name=com.android.launcher
+   module_pkg_name=com.rikumi.colorosmod
+   user_id=0
+}
+94 {
+   app_pkg_name=com.android.systemui
+   module_pkg_name=com.rikumi.colorosmod
+   user_id=0
+}
+95 {
+   app_pkg_name=com.android.packageinstaller
+   module_pkg_name=com.rikumi.colorosmod
+   user_id=0
+}
+96 {
+   app_pkg_name=com.android.settings
+   module_pkg_name=com.rikumi.colorosmod
+   user_id=0
+}
+97 {
+   app_pkg_name=com.heytap.market
+   module_pkg_name=com.rikumi.colorosmod
+   user_id=0
+}
+98 {
+   app_pkg_name=com.oplus.securitypermission
+   module_pkg_name=com.rikumi.colorosmod
+   user_id=0
+}
+99 {
+   app_pkg_name=com.oplus.safecenter
+   module_pkg_name=com.rikumi.colorosmod
+   user_id=0
+}
+100 {
+   app_pkg_name=com.oplus.athena
+   module_pkg_name=com.rikumi.colorosmod
+   user_id=0
+}
+101 {
+   app_pkg_name=com.android.providers.media.module
+   module_pkg_name=com.rikumi.colorosmod
+   user_id=0
+}
+102 {
+   app_pkg_name=com.oplus.pscanvas
+   module_pkg_name=com.rikumi.colorosmod
+   user_id=0
+}
+103 {
+   app_pkg_name=com.android.systemui
+   module_pkg_name=com.fr.colorostools
+   user_id=0
+}
+104 {
+   app_pkg_name=com.coloros.filemanager
+   module_pkg_name=com.fr.colorostools
+   user_id=0
+}
+105 {
+   app_pkg_name=com.radolyn.ayugram
+   module_pkg_name=io.github.kwensiu.dpis
+   user_id=0
+}
+106 {
+   app_pkg_name=com.android.settings
+   module_pkg_name=moe.chenxy.edifierpods
+   user_id=0
+}
+107 {
+   app_pkg_name=com.heytap.accessory
+   module_pkg_name=moe.chenxy.edifierpods
+   user_id=0
+}
+108 {
+   app_pkg_name=com.heytap.mydevices
+   module_pkg_name=moe.chenxy.edifierpods
+   user_id=0
+}
+109 {
+   app_pkg_name=com.android.systemui
+   module_pkg_name=moe.chenxy.edifierpods
+   user_id=0
+}
+110 {
+   app_pkg_name=com.android.bluetooth
+   module_pkg_name=moe.chenxy.edifierpods
+   user_id=0
+}
+111 {
+   app_pkg_name=com.nearme.instant.platform
+   module_pkg_name=com.fr.colorostools
+   user_id=0
+}
+112 {
+   app_pkg_name=com.coloros.assistantscreen
+   module_pkg_name=com.fr.colorostools
+   user_id=0
+}
+113 {
+   app_pkg_name=com.oplus.wirelesssettings
+   module_pkg_name=moe.chenxy.edifierpods
+   user_id=0
+}
+114 {
+   app_pkg_name=com.oplus.ota
+   module_pkg_name=com.luckyzyx.luckytool
+   user_id=0
+}
+115 {
+   app_pkg_name=com.oplus.sau
+   module_pkg_name=com.luckyzyx.luckytool
+   user_id=0
+}
+116 {
+   app_pkg_name=com.android.systemui
+   module_pkg_name=gulu.gulugulu
+   user_id=0
+}
+117 {
+   app_pkg_name=com.oplus.themestore
+   module_pkg_name=com.fr.colorostools
+   user_id=0
+}
+118 {
+   app_pkg_name=com.heytap.themestore
+   module_pkg_name=com.fr.colorostools
+   user_id=0
+}
+119 {
+   app_pkg_name=com.ss.android.ugc.aweme
+   module_pkg_name=io.github.kwensiu.dpis
+   user_id=0
+}
+120 {
+   app_pkg_name=com.tencent.mm
+   module_pkg_name=io.github.kwensiu.dpis
+   user_id=0
+}
+<<<<<
