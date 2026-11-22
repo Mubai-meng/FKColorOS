@@ -42,3 +42,8 @@ vcs.xml
 # 构建产物与临时构建日志（不入库）
 /apk/
 _build*.txt
+
+# tools/ 下 python 脚本的字节码与清理脚本的工作目录
+__pycache__/
+*.py[cod]
+/_lsposed_clean/
