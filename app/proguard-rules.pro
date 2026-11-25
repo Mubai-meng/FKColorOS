@@ -78,6 +78,7 @@
 #-packageobfuscationdictionary ../keystore/proguard-custom.txt
 
 # 崩溃日志手机端显示
+# 2026-11-24：spiderman 依赖源码零引用，已从 build.gradle.kts 移除，保留规则仅防未来加回时报错
 -keep class com.simple.spiderman.** { *; }
 -keepnames class com.simple.spiderman.** { *; }
 -keep public class * extends android.app.Activity

@@ -27,10 +27,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.rounded.OpenInNew
-import androidx.compose.material.icons.rounded.Adb
-import androidx.compose.material.icons.rounded.GridView
-import androidx.compose.material.icons.rounded.TouchApp
+import com.fr.colorostools.ui.icons.automirrored.rounded.OpenInNew
+import com.fr.colorostools.ui.icons.rounded.Adb
+import com.fr.colorostools.ui.icons.rounded.GridView
+import com.fr.colorostools.ui.icons.rounded.TouchApp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api

@@ -1,10 +1,10 @@
 package com.fr.colorostools.ui.compose.components
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PowerSettingsNew
+import com.fr.colorostools.ui.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Tune
+import com.fr.colorostools.ui.icons.outlined.Tune
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.fr.colorostools.R

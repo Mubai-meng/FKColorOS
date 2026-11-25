@@ -1345,6 +1345,8 @@
     <string name="fluid_cloud_enable">启用此功能</string>
     <string name="fluid_replace_switch_summary">把流体云卡片「打开」的目标 App 换成本机安装的版本</string>
     <string name="fluid_custom_switch_summary">按自定义规则为复制的内容弹出流体云卡片</string>
+    <string name="fluid_install_block_title">拦截安装提示流体云</string>
+    <string name="fluid_install_block_switch_summary">复制未安装应用的链接时，不再弹出「安装 XX 查看」卡片</string>
     <string name="fluid_rule_count">%d 条规则</string>
     <string name="fluid_rules_empty">暂无规则。点击下方添加，或使用上方预设。</string>
     <string name="fluid_dl_add_rule">添加替换规则</string>
@@ -1537,6 +1539,10 @@
     <string name="keyguard_ntf_offset_dp">下移距离</string>
     <string name="keyguard_ntf_offset_dp_summary">静止、拖拽与通知中心三种状态同时生效</string>
     <string name="keyguard_ntf_offset_dp_value">%1$d dp</string>
+
+    <!-- 系统界面：通知图标使用桌面主题图标（宿主 com.android.systemui） -->
+    <string name="desktop_theme_icon_enable">通知图标跟随桌面主题</string>
+    <string name="desktop_theme_icon_enable_summary">状态栏与悬浮通知改用桌面当前主题图标</string>
 
     <!-- 系统桌面：隐藏应用（宿主 com.android.launcher） -->
     <string name="launcher_hidden_section_root">隐藏应用</string>

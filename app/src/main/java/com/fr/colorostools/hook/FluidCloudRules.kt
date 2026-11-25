@@ -208,12 +208,23 @@ internal object FluidCloudConfig {
         return customCache
     }
 
+    // ---------------- 功能三 ----------------
+
+    /**
+     * 拦截「未安装应用的安装提示流体云」。
+     *
+     * 无规则数据，纯布尔 —— 不做 TTL 缓存（remote prefs 内存读，成本可忽略）。
+     */
+    fun installCardBlockEnabled(): Boolean =
+        HookEnv.settingBoolean(KEY_INSTALL_BLOCK_ENABLED, false)
+
     // ---------------- 键名（App 侧写入、hook 侧读取，两边一致） ----------------
 
     const val KEY_REPLACE_ENABLED = "fluid_replace_enabled"
     const val KEY_REPLACE_RULES = "fluid_replace_rules"
     const val KEY_CUSTOM_ENABLED = "fluid_custom_enabled"
     const val KEY_CUSTOM_RULES = "fluid_custom_rules"
+    const val KEY_INSTALL_BLOCK_ENABLED = "fluid_install_block_enabled"
 }
 
 /**

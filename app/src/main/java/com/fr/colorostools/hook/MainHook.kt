@@ -5,10 +5,12 @@ import android.util.Log
 import com.fr.colorostools.hook.hookers.AccessibilityEnhanceHook
 import com.fr.colorostools.hook.hookers.AppBrightnessLimitHook
 import com.fr.colorostools.hook.hookers.AutoBrightnessHook
+import com.fr.colorostools.hook.hookers.DesktopThemeIconHook
 import com.fr.colorostools.hook.hookers.ExpressCardHook
 import com.fr.colorostools.hook.hookers.FakeScreenHook
 import com.fr.colorostools.hook.hookers.FileManagerHook
 import com.fr.colorostools.hook.hookers.FilePickerHook
+import com.fr.colorostools.hook.hookers.FluidCloudInstallCardHook
 import com.fr.colorostools.hook.hookers.FluidCloudReplaceHook
 import com.fr.colorostools.hook.hookers.FluidCloudSeedlingHook
 import com.fr.colorostools.hook.hookers.FloatWindowCountHook
@@ -148,6 +150,11 @@ class MainHook : XposedModule() {
             FluidCloudReplaceHook.install()
             FluidCloudSeedlingHook.install()
         }
+        // 拦截「未安装应用的安装提示流体云」：CardManager#send 单点否决，
+        // 只掐安装卡、不影响其它流体云，见 FluidCloudInstallCardHook 类文档
+        if (pkg == HookEnv.PKG_METIS) {
+            FluidCloudInstallCardHook.install()
+        }
         // 无障碍增强（设置 App）：写 Secure settings 需要 WRITE_SECURE_SETTINGS，只有设置进程持有
         if (pkg == HookEnv.PKG_SETTINGS) {
             LogUtils.i(TAG, via, "设置宿主命中（$pkg），安装无障碍增强 Hooker")
@@ -162,10 +169,16 @@ class MainHook : XposedModule() {
             // 浮窗：多任务隐藏小窗应用（多任务卡片过滤在桌面侧，见 FloatWindowRecentsHook）
             FloatWindowRecentsHook.installInLauncher()
         }
-        // 锁屏通知区域下移（系统界面）：三条 padding 通道，见 KeyguardNotificationOffsetHook 类文档
+        // 系统界面（com.android.systemui）宿主：
+        //  - 锁屏通知区域下移：三条 padding 通道，见 KeyguardNotificationOffsetHook 类文档
+        //  - 通知图标改为桌面当前主题图标：StatusBarIconView#getIcon 单点替换 +
+        //    灰度判定修正，见 DesktopThemeIconHook 类文档
         if (pkg == HookEnv.PKG_SYSTEMUI) {
-            LogUtils.i(TAG, via, "系统界面宿主命中（$pkg），安装锁屏通知偏移 Hooker")
+            // 用 ERROR 级别：即使「详细日志」开关关着也要能在 LSPosed 日志里看到这一条，
+            // 这是判断「模块到底有没有被注入 SystemUI 进程」最直接的锚点。
+            LogUtils.e(TAG, via, "系统界面宿主命中（$pkg），安装锁屏通知偏移 + 桌面主题图标 Hooker")
             KeyguardNotificationOffsetHook.install()
+            DesktopThemeIconHook.install()
         }
         // 天气 App（系统天气）：不外跳浏览器（startActivity 级拦截）+ 净化（隐藏广告/运营卡片）
         if (pkg == HookEnv.PKG_WEATHER) {

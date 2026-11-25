@@ -1559,6 +1559,8 @@
     <string name="fluid_export_empty">没有可导出的规则</string>
     <string name="fluid_import_empty">剪贴板为空或不是有效的规则 JSON</string>
     <string name="fluid_import_done">已导入 %d 条规则</string>
+    <string name="fluid_install_block_title">拦截安装提示流体云</string>
+    <string name="fluid_install_block_switch_summary">复制未安装应用的链接时，不再弹出「安装 XX 查看」卡片</string>
     <string name="fluid_save">保存</string>
     <string name="fluid_delete">删除</string>
     <string name="fluid_copy">复制本规则</string>
@@ -1728,6 +1730,10 @@
     <string name="keyguard_ntf_offset_dp">Offset</string>
     <string name="keyguard_ntf_offset_dp_summary">Applies to the resting, dragging and notification-center states</string>
     <string name="keyguard_ntf_offset_dp_value">%1$d dp</string>
+
+    <!-- 系统界面：通知图标使用桌面主题图标（宿主 com.android.systemui） -->
+    <string name="desktop_theme_icon_enable">Use desktop theme icons for notifications</string>
+    <string name="desktop_theme_icon_enable_summary">Status bar and floating notifications use the launcher current theme icon</string>
 
     <!-- 系统桌面：隐藏应用（宿主 com.android.launcher） -->
     <string name="launcher_hidden_section_root">Hidden apps</string>

@@ -476,7 +476,9 @@ object ScopePageRegistry {
         "statusbar" to R.string.StatusBar,
         "launcher" to R.string.Desktop,
         "aod" to R.string.AodRelated,
-        "lock_screen" to R.string.LockScreen,
+        // lock_screen（宿主 com.android.systemui）**不再覆盖标题**：按项目规范走宿主 App 标签
+        // ⇒ 中文「系统界面」/ 英文「System UI」。2026-11-24 按用户要求把原「锁屏」改成「系统界面」，
+        // 从此该页同时放锁屏通知下移与通知图标主题化两项功能，叫「锁屏」已不准确。
         // 浮窗是跨进程分类节点（system_server 六项 + 系统桌面一项），没有单一目标 App 名可借用
         "float_window" to R.string.FloatWindow,
         // 系统框架：system_server 分类顶层节点（2026-11-16 用户指定新增），同浮窗一样无 App 名可借
@@ -610,7 +612,8 @@ object ScopePageRegistry {
         // ⚠️ 同为 com.android.launcher 宿主，**不进 treeOrder** —— 它挂在 launcher_menu 的二级入口里，
         //    否则会出现两个同名的「系统桌面」顶层节点
         register(LauncherHiddenAppsSpec)
-        // 锁屏通知区域下移：宿主 com.android.systemui（lock_screen 顶层节点，treeOrder 已含此键）
+        // 系统界面（宿主 com.android.systemui，lock_screen 顶层节点，treeOrder 已含此键）：
+        // 锁屏通知区域下移 + 通知图标使用桌面主题图标两项，同页不同开关
         register(LockScreenSpec)
         // 浮窗八功能：system_server + 系统桌面两宿主（float_window 顶层节点，treeOrder 已含此键）
         register(FloatWindowSpec)

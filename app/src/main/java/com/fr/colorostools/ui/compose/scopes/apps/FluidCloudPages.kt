@@ -279,7 +279,7 @@ private fun FluidCardRows(rows: List<@Composable () -> Unit>) {
 
 // ---------------- 页面：oplus_metis（功能树一级节点） ----------------
 
-/** 智慧决策服务（流体云引擎宿主）：两个流体云功能的入口节点 */
+/** 智慧决策服务（流体云引擎宿主）：三个流体云功能的入口节点 */
 val OplusMetisSpec = ScopePageSpec(
     pageKey = "oplus_metis",
     prefsName = SettingsPrefs,
@@ -299,6 +299,14 @@ val OplusMetisSpec = ScopePageSpec(
         title = ctx.getString(R.string.fluid_custom_title),
         target = "fluid_custom",
         summary = ctx.getString(R.string.fluid_rule_count, customCount),
+    )
+    // 功能三：拦截安装提示流体云 —— 单一判据（安装卡识别），无规则数据也无阈值，
+    // 因此直接在本页作为一行开关，不再占用二级页面（关闭时 hook 体零反射早退放行）。
+    switch(
+        key = FluidCloudConfig.KEY_INSTALL_BLOCK_ENABLED,
+        title = ctx.getString(R.string.fluid_install_block_title),
+        summary = ctx.getString(R.string.fluid_install_block_switch_summary),
+        requiredScopes = arrayOf(HookEnv.PKG_METIS),
     )
 }
 

@@ -2,14 +2,14 @@ package com.fr.colorostools.ui.compose
 
 import android.content.Context
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Android
-import androidx.compose.material.icons.filled.Apps
-import androidx.compose.material.icons.filled.BrightnessMedium
+import com.fr.colorostools.ui.icons.filled.Android
+import com.fr.colorostools.ui.icons.filled.Apps
+import com.fr.colorostools.ui.icons.filled.BrightnessMedium
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material.icons.filled.PictureInPictureAlt
-import androidx.compose.material.icons.filled.SignalCellularAlt
+import com.fr.colorostools.ui.icons.filled.MoreHoriz
+import com.fr.colorostools.ui.icons.filled.PictureInPictureAlt
+import com.fr.colorostools.ui.icons.filled.SignalCellularAlt
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.fr.colorostools.ui.compose.components.PrefIndexItem

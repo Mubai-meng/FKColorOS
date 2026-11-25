@@ -14,8 +14,13 @@ lsparanoid {
     variantFilter = { variant -> variant.name == "release" }
 }
 
-/** 本次构建的版本号（读取并自增 version.properties） */
-val appVersion: AppVersionInfo = readAndBumpVersion()
+/**
+ * 本次构建的版本号（只读 version.properties，**不再自增**）。
+ * 2026-11-24：按用户要求去掉构建期自增 —— 每次构建都改版本号会让
+ * 增量构建缓存失效、产物名跳号、且无法重出一模一样的包。
+ * 需要抬版本时手工改 app/version.properties 的两个字段即可。
+ */
+val appVersion: AppVersionInfo = readVersion()
 
 android {
     namespace = gropify.project.groupName
@@ -27,7 +32,7 @@ android {
         minSdk = gropify.project.android.minSdk
         targetSdk = gropify.project.android.targetSdk
 
-        // 每次构建自动抬升：versionCode +1、versionName 补丁号 +1
+        // 版本号来自 app/version.properties（只读，不再构建期自增）
         versionCode = appVersion.code
         versionName = appVersion.name
         ndk.abiFilters.addAll(arrayOf("arm64-v8a"/*, "armeabi-v7a", "x86", "x86_64"*/))
@@ -93,6 +98,14 @@ android {
         jniLibs {
             useLegacyPackaging = false
         }
+        dex {
+            // AGP 默认在 minSdk>=28 时把 dex 以 STORED（不压缩）方式打进 APK，以便安装时
+            // 直接 mmap、启动更快。代价是 debug 包（无 R8 压缩）里 5 个 dex 合计 61.6MB
+            // 原样占位。实测这些 dex 的 deflate 压缩率约 29%（61.6MB -> 17.8MB）。
+            // 置 true 后改走 DEFLATE，代价仅是安装时多一次解压、首次启动略慢，
+            // 对 Xposed 模块无感。release 有 R8 兜底，dex 只有 6.5MB，也可同享。
+            useLegacyPackaging = true
+        }
     }
 }
 
@@ -153,21 +166,22 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.material3)
     implementation(libs.material.kolor)
-    implementation(libs.androidx.compose.material.icons.extended)
+    // 只保留 icons-core（Home/Lock/Check/Info/Search 等 14 个基础图标），
+    // 其余图标已手写在 ui/icons/ 下，省下 material-icons-extended 的 9.7MB 字节码
+    implementation(libs.androidx.compose.material.icons.core)
     //Miuix
     implementation(libs.miuix.ui)
     implementation(libs.miuix.icons)
     implementation(libs.miuix.nav)
     implementation(libs.miuix.preference)
     implementation(libs.miuix.blur)
-    //Markdown
+    //Markdown（只用 core + ext-tables；html/image 两个插件源码零引用，2026-11-24 移除）
     implementation(libs.markwon.core)
-    implementation(libs.markwon.html)
-    implementation(libs.markwon.image)
     implementation(libs.markwon.ext.tables)
     debugImplementation(libs.androidx.compose.ui.tooling)
-    implementation(libs.coil.compose)
-    implementation(libs.coil.network.okhttp)
+    // 图片加载：全工程零引用（无 AsyncImage / ImageRequest / coil 调用），
+    // 之前是靠 coil-compose + coil-network-okhttp 白占 dex，2026-11-24 移除。
+    // 若后续要显示网络图片再按需加回。
 
     //Android UI
     implementation(libs.betterandroid.ui.component)
@@ -175,11 +189,10 @@ dependencies {
     implementation(libs.betterandroid.ui.extension)
     implementation(libs.betterandroid.system.extension)
 
-    //KotlinX
+    //KotlinX（serialization 只用 json；protobuf 源码零引用，2026-11-24 移除）
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.kotlinx.serialization.protobuf)
 
     //OkHttp3
     implementation(libs.okhttp3)
@@ -191,9 +204,8 @@ dependencies {
     implementation(libs.libsu.io)
 
     //Tools
-    implementation(libs.deviceCompat)
     implementation(libs.xxpermissions)
-    implementation(libs.spiderman)
+    // DeviceCompat 由 XXPermissions 传递引入，不需要单独声明
     implementation(libs.android.image.cropper)
 
     //Test
@@ -202,34 +214,26 @@ dependencies {
     testImplementation(libs.androidx.test.core)
 }
 
-/** 构建期版本信息（读取并写回 app/version.properties） */
+/** 构建期版本信息（来自 app/version.properties，只读） */
 data class AppVersionInfo(val name: String, val code: Int)
 
 /**
- * 补丁号自增（满 100 进位次版本号、次版本号归零）：1.0.58 -> 1.0.59、1.0.99 -> 1.1.0
- * （2026-10-19 加进位：纯 patch+1 永远产不出 x.y.0，发小版本时只能改构建逻辑；
- *  忽略 -/_ 后缀）
+ * 读取版本号（**只读，不写回**）。
+ *
+ * 2026-11-24 移除原有的 readAndBumpVersion()：
+ * - 原逻辑在 Gradle **配置阶段**就 `properties.store(...)` 写文件，导致
+ *   1) 每次 assembleDebug 都产生一次「配置阶段写文件」⇒ 配置缓存永远不可复用；
+ *   2) 产物名/versionCode 每次都变 ⇒ UP-TO-DATE 判定永远失效，等于强迫全量重打包；
+ *   3) 同一个 commit 重编译得到的 APK 与上次不一致，无法做体积/行为对比。
+ * 需要抬版本时手工改 version.properties 的 versionCode / versionName。
  */
-fun bumpPatchVersion(name: String): String {
-    val core = name.substringBefore('-').substringBefore('_')
-    val parts = core.split('.').mapNotNull { it.toIntOrNull() }
-    val major = parts.getOrElse(0) { 1 }
-    val minor = parts.getOrElse(1) { 0 }
-    val patch = parts.getOrElse(2) { 0 } + 1
-    return if (patch >= 100) "$major.${minor + 1}.0" else "$major.$minor.$patch"
-}
-
-fun readAndBumpVersion(): AppVersionInfo {
+fun readVersion(): AppVersionInfo {
     val propsFile = file("version.properties")
     if (!propsFile.canRead()) throw GradleException("Can't read version.properties!")
     val properties = Properties()
-    properties.load(FileInputStream(propsFile))
-    val nextCode = properties["versionCode"].toString().toInt() + 1
-    val currentName = properties.getProperty("versionName", "1.0.0")
-    val nextName = bumpPatchVersion(currentName)
-    properties["versionCode"] = nextCode.toString()
-    properties["versionName"] = nextName
-    properties.store(propsFile.writer(), null)
-    println("buildVersion -> $nextName($nextCode)")
-    return AppVersionInfo(nextName, nextCode)
+    FileInputStream(propsFile).use { properties.load(it) }
+    val code = properties["versionCode"].toString().toInt()
+    val name = properties.getProperty("versionName", "1.0.0")
+    println("buildVersion -> $name($code) [read-only]")
+    return AppVersionInfo(name, code)
 }
