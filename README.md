@@ -4,7 +4,7 @@
 
 基于 **libxposed API 102**（现代模块，非 XposedBridge 兼容模式），Kotlin + Jetpack Compose 编写。
 
-> 当前版本 **1.5.6（177）** · 仅适配 arm64-v8a · 需要 Android 11+（minSdk 30）· 只在 ColorOS 17 / OnePlus 15 上做过真机验证
+> 当前版本 **1.6.0（190）** · 仅适配 arm64-v8a（纯 64 位，V2+V3 签名）· 需要 Android 11+（minSdk 30）· 只在 ColorOS 17 / OnePlus 15 上做过真机验证
 
 ---
 
@@ -16,7 +16,8 @@
 | 设备 | OnePlus 15（真机验证机） |
 | Android | API 37（compileSdk / targetSdk 37） |
 | 框架 | LSPosed（libxposed API 102） |
-| ABI | arm64-v8a |
+| ABI | arm64-v8a（纯 64 位） |
+| 签名 | V2 + V3（V1 / V4 关闭） |
 | 构建 | AGP 9.4.1 · Kotlin 2.4.21 · JDK 21 · Compose BOM 2026.09.00 |
 
 模块作用域为十二个宿主，安装后 LSPosed 里会自动预勾选：
@@ -48,6 +49,7 @@ com.oplus.themestore           主题基础服务
 | 功能 | 作用 | 宿主 |
 |---|---|---|
 | 流体云替换 / 自定义 | 改写流体云对文本 Intent 的识别结果，替换成自定义目标或自定义内容 | `com.oplus.metis` |
+| 拦截安装提示流体云 | 不弹「应用已安装」提示卡；开关内联在「智慧决策服务」主页，不设二级页 | `com.oplus.metis` |
 | 无障碍增强 | 绕过设置里对无障碍服务开关的限制，直接写 Secure 表放开指定服务 | `com.android.settings` |
 | 桌面长按菜单 | 定制 App 图标长按弹出的菜单项：增删条目、改写深链段与更多菜单 | `com.android.launcher` |
 | 隐藏应用四件套 | 双指张开打开隐藏应用 / 多任务显示已隐藏应用 / 彻底隐藏所选应用图标 / 应用列表 | `com.android.launcher` |
@@ -56,10 +58,12 @@ com.oplus.themestore           主题基础服务
 | 天气隐藏广告 | 隐藏运营卡片推广位与冷启动开屏广告，保留天气预警标签 | `com.coloros.weather2` |
 | 天气隐藏全部运营卡片 | 首页运营卡片区整块不显示 | `com.coloros.weather2` |
 | 熄屏挂机 | 电源键触发假熄屏，应用继续运行，再按一次即可回来；不写系统设置、不留后台服务 | `system` |
-| 自动亮度暗环境提升 | 环境光低于上限时适度提高屏幕亮度，四个参数可调（提升强度 / 低亮度补偿 / 生效上限 / 结果上限），接近上限平滑收敛、达到上限完全原生行为；同时跳过 ColorOS 自带的暗环境降亮度 | `system` |
+| 自动亮度暗环境提升 | 环境光低于上限时适度提高屏幕亮度，四个参数可调（提升强度 / 低亮度补偿 / 生效上限 / 结果上限），改动即时生效；接近上限平滑收敛、达到上限完全原生行为；同时跳过 ColorOS 自带的暗环境降亮度 | `system` |
+| 解锁 App 亮度限制 | 解除视频 / 短视频类 App 的单独降亮度、支付 / 出行类窗口亮度上限与全局亮度上限；改配置开关位而非算法，关掉即按原值快照还原 | `system` |
 | 浮窗（小窗）增强 | 数量上限 / 关闭后隐藏 / 贴边挂机 / 贴边静音 / 白色竖条 / 横屏比例 / 贴边位置与最大尺寸 | `system` |
-| 小布输入法 · 模糊与下滑 | 强制液态玻璃模糊；按键下滑执行 25 种编辑动作，26 键与九宫格独立配置 | `com.oplus.keyboard` |
+| 小布输入法 · 模糊与四方向滑动 | 强制液态玻璃模糊；按键上 / 下 / 左 / 右滑动触发 25 种编辑动作，26 键与九宫格独立配置触发距离 | `com.oplus.keyboard` |
 | 锁屏通知下移 | 锁屏通知整体下移 0–40dp，覆盖静止 / 拖拽 / 展开 / 收起四种状态 | `com.android.systemui` |
+| 通知图标跟随桌面主题 | 状态栏、通知面板行、锁屏卡片与胶囊、AOD 的通知图标改用桌面主题图标，支持换主题刷新与灰度着色修正 | `com.android.systemui` |
 | 文件管理 | 隐藏文件选择页的安全访问提示；选文件改走 MT 管理器或原生选择器 | `com.coloros.filemanager` + `system` |
 | 主题商店 · 会员 | 会员状态、会员资源与会员价格按已开通处理（需已登录账号），不涉及订单与支付 | `com.heytap.themestore` |
 | 主题商店 · 去广告 | 屏蔽启动开屏广告、首页横幅与信息流广告卡片 | `com.heytap.themestore` |
@@ -68,7 +72,7 @@ com.oplus.themestore           主题基础服务
 
 每个开关独立，关闭即完全不动宿主行为。宿主侧只做「类存在才安装 hook」的自适应判断，所以系统小版本更新导致某个类消失时，对应 hook 会自己跳过，不会连累其他功能。
 
-功能树里「系统框架」「锁屏」「浮窗」「快应用服务」「主题商店」是独立顶层节点；天气页把净化与不外跳合并为一页三开关，小布输入法页把模糊与下滑快捷键合并为一页。
+功能树里「系统框架」「系统界面」「浮窗」「快应用服务」「主题商店」是独立顶层节点；「系统界面」页同时放锁屏通知下移与通知图标主题化（旧名「锁屏」已随功能范围扩大而改名），天气页把净化与不外跳合并为一页三开关，小布输入法页把模糊与四方向滑动快捷键合并为一页。
 
 ### 实现取向
 
@@ -81,7 +85,7 @@ com.oplus.themestore           主题基础服务
 ## 安装
 
 1. 设备已 root 并装好 LSPosed
-2. 安装 `FKColorOS_v1.5.6_release.apk`（debug 版为 `FKColorOS_v{versionName}_debug.apk`）
+2. 安装 `FKColorOS_v1.6.0_release.apk`（debug 版为 `FKColorOS_v{versionName}_debug.apk`）
 3. LSPosed 里启用模块，确认作用域已勾选上表十二个宿主
 4. 重启作用域内应用（改设置类功能建议直接重启设备）
 
@@ -106,11 +110,11 @@ cd FKColorOS
 - **`local.properties`** — 指向本机 SDK：`sdk.dir=/path/to/android-sdk`
 - **`keystore/keystore.properties`** — 签名信息，四个键：`storeFile` / `storePassword` / `keyAlias` / `keyPassword`；对应的 `.jks` 放同目录
 
-版本号由构建脚本自动抬升：每次构建 `versionCode +1`、`versionName` 补丁号 +1（满 100 进位 minor），状态写在 `app/version.properties`。想手动发 1.3.0 这种版本，先把文件写成 `1.2.99`，让进位规则自己产出。
+版本号只从 `app/version.properties` 读取（`versionCode` / `versionName`），构建脚本不再自增；发版时手工改这两项即可。这样产物名与版本稳定，UP-TO-DATE 判定才有效。
 
-签名方案为 **V2-only**（V1/V3/V4 关闭）。原因：V1 依赖 SHA-1，本机 JDK 安全策略已禁；V2 与 V3 同时启用时 `apksigner verify` 在多版本上都报 V2=false（block 实际写入，属判定行为），无法同时干净交付。minSdk 30 意味着 V2 已覆盖全部目标设备。
+签名方案为 **V2 + V3 双方案**（V1 / V4 关闭）。AGP 9 下签名开关必须走 variant API——DSL `signingConfigs { }` 里的 `enableV2Signing` / `enableV3Signing` 不再作用于实际签名（实测只出了 V3）；V1 依赖 SHA-1，本机 JDK 安全策略已禁。minSdk 30 已覆盖全部目标设备。
 
-正式版启用 R8 + 字符串混淆 + 资源压缩，产物为单个 `classes.dex`；必须保留 `MainHook` 类名，因为 libxposed 按 `java_init.list` 里的硬编码名称反射加载入口。
+正式版启用 R8 + 字符串混淆 + 资源压缩，产物为单个 `classes.dex`；必须保留 `MainHook` 类名，因为 libxposed 按 `java_init.list` 里的硬编码名称反射加载入口。debug 包的 dex 走 DEFLATE 压缩（68.33 MB → 17.37 MB，详见 `docs/构建体积分析与优化.md`）。
 
 ---
 
@@ -136,8 +140,12 @@ app/src/main/java/com/fr/colorostools/
 ├── ref/Reflect.kt           反射工具
 ├── utils/LogUtils.kt        日志（唯一通道 = LSPosed 框架日志）
 └── ui/compose/              Compose UI，页签 + 功能树 + 作用域门禁
+  ├── icons/                 43 个手写 ImageVector（替代 material-icons-extended）
+  └── scopes/apps/           每个宿主一个功能页
 hidden-api-stub/             隐藏 API 编译桩
 docs/                        各功能的逆向分析与方案评估
+tools/icon-extract/          从 extended AAR 字节码机械还原图标路径
+tools/clean_lsposed_db.py    LSPosed 库脏条目清理（默认只体检）
 ```
 
 新增功能的标准落位：`hookers/HookXxx.kt` 写 hook → `MainHook` 加分发 → App 设置项写 remote prefs → `scopes/apps/HookXxxPage.kt` 做页面 → `ScopePageRegistry` 注册 → `scope.list` 补宿主。细节见 `docs/` 下的方案文档。

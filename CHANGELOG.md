@@ -1,5 +1,69 @@
 # FKColorOS 更新日志
 
+## v1.6.0 · 2026-11-25
+
+自 v1.5.6 起的累积更新（中间 1.5.7～1.5.18 为开发版本）。版本号 1.6.0（190），纯 64 位（arm64-v8a），签名方案 V2 + V3。
+
+### 新增功能
+
+#### 通知图标跟随桌面主题（`com.android.systemui`）
+
+- 状态栏、通知面板行、锁屏卡片、锁屏胶囊、AOD 五处通知图标改用桌面主题图标，与「锁屏通知下移」同页；该页随之由「锁屏」更名为「系统界面」
+- 取图唯一入口 `UxIconPackageManagerExt#loadItemIcon(PackageItemInfo, ApplicationInfo, boolean)`，首参 `ActivityInfo.icon` 为 0 时补 `appInfo.icon`，否则 `loadUxIcon` 遇 `resId==0` 直接返回 null（这是早期只命中 systemui 的根因）
+- 四条独立取图路径分别挂：`StatusBarIconView#getIcon`（命中即短路，不调 `chain.proceed`，省掉宿主每帧解码与缩放）、`NotificationHeaderViewWrapper#onContentUpdated`（proceed 后改 `mIcon`，图由 RemoteViews 渲染，改 `smallIcon` 无效）、锁屏胶囊 `CapsuleNotificationDataController` 与 AOD `NotificationLayout`（钩 `NotificationListener#onNotificationPosted` 改源 `mSmallIcon`）
+- 面板行每个 View 独立 `ThemeIconDrawable`（位图共享），避免颜色滤镜互相污染；着色另挂 `updateStatusBarIconGrayScale` → `setIsIconColorable(false)`
+- 三层缓存：配置快照 300ms → 位图 LRU 4MiB → 失败 LRU 8s TTL；`itemInfoCache`（LRU128 / 60s）避免换主题时产生每包两次跨进程 binder 的续航尖峰
+- 不写 extras `oplus_smallicon_use_app_icon`：该键会被 `OplusNotificationEntryExImpl#useAppIconForSmallIcon()` 缓存并让面板走 APK 原始图标覆盖
+
+#### 拦截安装提示流体云（`com.oplus.metis`）
+
+- 新增 `FluidCloudInstallCardHook`，挂 `CardManager#send(Context, MetisData)V`（全项目唯一出口），只掐安装提示卡，不影响其他流体云
+- 三条判据 **OR**：卡片副标题 / 标题模板 / 按钮文案 `install`、`install_retry`；顺序按代价排列（副标题 → 标题 → 按钮），命中即返回。曾验证写成 AND 会全部漏判
+- 开关内联在「智慧决策服务」主页，不设二级页
+
+#### 解锁 App 亮度限制（`system`）
+
+- 解除视频 / 短视频类 App 的单独降亮度、支付 / 出行类窗口亮度上限（~600nit）与白名单外全局亮度上限（~1200nit）
+- 改配置对象的开关位与动态 nit 快照，而不是 hook 每个消费算法：等价于把 XML 里的 `<switch>` 写成 0，是系统自己认的关断语义
+- 按子对象身份记原值快照（`IdentityHashMap`），关掉开关立即写回；RUS 云端重载后会自愈重放，面板峰值拿不到时跳过全部 nit 改动
+- 自动亮度参数（阈值 / 增益等）改为热更新，无需重启 system_server
+
+#### 小布输入法 v2.0.0（`com.oplus.keyboard`）
+
+- 滑动快捷键从下滑扩为四方向（下滑 / 上滑 / 左滑 / 右滑），下滑键名不带后缀以兼容 v1.x 旧配置
+- 新增 13 项特殊键、大小写切换动作、按方向独立触发距离（48→200），适配 1.9.18 / 1.8.35 双面板 Variant
+- 设置页逐项对齐上游，子页由 4 个收敛为 2 个（「其它按键」并入 26 键 / 九宫格页）
+
+### 改进与修复
+
+- **亮度限制并发竞态**：9 张 `IdentityHashMap` 快照表被 hook 回调线程与 watcher 线程同时读写，可能抛 `ConcurrentModificationException` 或写坏桶链，表现为「关掉开关后配置还原不回去」。加 `snapLock` 覆盖写入与遍历；不换 `ConcurrentHashMap`（按 equals 归并会把 A 对象的原值写到 B 上）
+- **小布标签布局错位**：26 键与九宫格常复用同一视图且宽高相同，缓存原先只比宽高，导致九宫格用 26 键坐标画标签；`labelT9` 参与缓存有效性判定并在切布局 / reset 时复位
+- **滑动配置热路径**：`SwipeConfig.load()` 加 1s TTL + 显式失效（原为每帧全量 prefs 读，约 3.6 万次/秒）；标签文本预计算（原为每帧 1560～2040 个临时字符串）；预览气泡按「键 + 方向」去重，取消回调使用正确的 handler
+- **续航相关**：亮度限制 watcher 关空闲后转 30s 长睡、自愈周期 30 → 300 轮；自动亮度 `boost()` 改参数快照，热路径只读一个引用；模糊半径改 1s TTL 缓存（原为只在 install 读一次，改滑条需重启键盘）
+- **hook 查找缓存**：键盘方法形状查找命中时同步清理负缓存（同名不同源的类曾误伤），`reset()` 补齐 `methodShapeCache.clear()`
+
+### 体积与构建
+
+- 移除 `material-icons-extended`（dex 内实测约 19.1 MB），改为 `material-icons-core` + `ui/icons/` 下 43 个手写 ImageVector；新增 `tools/icon-extract/` 从 extended AAR 字节码机械还原路径，不手抄 SVG
+- 移除源码零引用的 `coil-compose` / `coil-network-okhttp` / `markwon-html` / `markwon-image` / `kotlinx-protobuf` / `spiderman`，删除 4 个废弃 Lottie 资源
+- dex 改走 DEFLATE 压缩；debug 包 68.33 MB → 17.37 MB（−74.6%），release 包同享压缩。完整 A/B 数据与 dexsql 统计口径更正见 `docs/构建体积分析与优化.md`
+- 版本号改回只读 `app/version.properties`，构建期不再自增；签名由 V2-only 改为 V2 + V3（variant API）
+- 新增 `tools/clean_lsposed_db.py`：清理旧包名 `com.FuckColorOS` 遗留的 LSPosed 库脏条目，默认只体检，`--apply` 才删，删前设备内备份
+
+### 文档
+
+- 新增 `docs/项目实证总览-归档.md`、`docs/桌面主题图标-移植方案与实证.md`、`docs/构建体积分析与优化.md`；`docs/流体云移植-方案评估.md` 补齐安装提示卡实证
+
+### 升级说明
+
+- 与 v1.5.6 同一签名密钥，可直接覆盖安装（签名方案由 V2-only 变为 V2 + V3）；从 debug 版换 release 版仍需先卸载
+- 安装包名称：`FKColorOS_v1.6.0_release.apk`
+- 新增 `system` / `com.android.systemui` 挂点，安装后建议**完整重启一次手机**，让 system_server 与系统界面重新装载
+- 验证状态：通知图标五通道在 1.5.17 开发版已真机逐项确认命中且日志无异常；1.6.0 汇总版本待真机复验（重点：状态栏图标尺寸、换主题后刷新、日志 30 条上限）。换主题后已存在的通知不会自动刷新图标
+- 新增功能均为独立开关，关闭即完全不动宿主行为
+
+---
+
 ## v1.5.6 · 2026-11-21
 
 自 v1.5.5 起的累积更新。版本号 1.5.6（177），64 位（arm64-v8a），仅 V2 签名。
