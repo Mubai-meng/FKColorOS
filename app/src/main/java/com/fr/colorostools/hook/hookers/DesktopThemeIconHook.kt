@@ -186,18 +186,25 @@ internal object DesktopThemeIconHook {
     /** 诊断日志累计条数：全功能共用一个总量上限，到顶后所有诊断静默 */
     private val diagSent = AtomicInteger(0)
 
+    /** 本次 install 实际装上的通道名（只用于那条 E 级汇总锚点） */
+    private val channels = ArrayList<String>()
+
     fun install() {
         // 顺序有讲究：先装源头（覆盖面最大），再装状态栏精确渲染、通知行、着色修正
-        hookNotificationSource()
-        hookStatusBarIconView()
-        hookHeaderIcon()
-        hookHeaderResolveViews()
-        hookHeaderIconColor()
-        hookRowKeyguardState()
-        hookCapsuleCard()
-        hookGrayScale()
+        channels += hookNotificationSource()
+        channels += hookStatusBarIconView()
+        channels += hookHeaderIcon()
+        channels += hookHeaderResolveViews()
+        channels += hookHeaderIconColor()
+        channels += hookRowKeyguardState()
+        channels += hookCapsuleCard()
+        channels += hookGrayScale()
         scheduleSelfCheck()
-        note("install", "桌面主题图标 Hooker 安装完成（开关=${enabled()}）")
+        note(
+            "install",
+            "桌面主题图标 Hooker 安装完成（开关=${enabled()}）：" +
+                "通道 ${if (channels.isNotEmpty()) channels.joinToString("+") else "无"}",
+        )
     }
 
     /**
@@ -211,10 +218,10 @@ internal object DesktopThemeIconHook {
         runCatching {
             Handler(Looper.getMainLooper()).postDelayed({
                 val context = HookEnv.context() ?: run {
-                    LogUtils.e(TAG, "selfcheck", "拿不到宿主 Context，自检跳过")
+                    LogUtils.i(TAG, "selfcheck", "拿不到宿主 Context，自检跳过")
                     return@postDelayed
                 }
-                LogUtils.e(TAG, "selfcheck", "开始自检（开关=${enabled()}）")
+                LogUtils.i(TAG, "selfcheck", "开始自检（开关=${enabled()}）")
                 for (pkg in SELF_CHECK_PACKAGES) {
                     runCatching { DesktopThemeIconProvider.diagnose(context, pkg) }
                         .onFailure {
@@ -238,11 +245,11 @@ internal object DesktopThemeIconHook {
      *
      * ⚠️ 必须在 `chain.proceed()` **之前**改：`proceed` 内部就把 sbn 分发进 pipeline 了。
      */
-    private fun hookNotificationSource() {
+    private fun hookNotificationSource(): String {
         val cls = Reflect.classOrNull(HookEnv.classLoader, CLS_NOTIFICATION_LISTENER)
         if (cls == null) {
             LogUtils.w(TAG, "install", "$CLS_NOTIFICATION_LISTENER 不存在，通知源头通道跳过")
-            return
+            return ""
         }
         val method = Reflect.findMethodByShape(
             cls = cls,
@@ -252,7 +259,7 @@ internal object DesktopThemeIconHook {
         )
         if (method == null) {
             LogUtils.w(TAG, "install", "onNotificationPosted 未命中，通知源头通道跳过")
-            return
+            return ""
         }
         runCatching {
             HookEnv.module.hook(method).intercept(object : XposedInterface.Hooker {
@@ -266,10 +273,12 @@ internal object DesktopThemeIconHook {
                     return chain.proceed()
                 }
             })
-            note("install", "已挂 $CLS_NOTIFICATION_LISTENER#onNotificationPosted（通知源头通道）")
+            installNote("已挂 $CLS_NOTIFICATION_LISTENER#onNotificationPosted（通知源头通道）")
         }.onFailure {
             LogUtils.w(TAG, "install", "挂 onNotificationPosted 失败：${it.javaClass.simpleName}: ${it.message}")
+            return ""
         }
+        return "源头"
     }
 
     /**
@@ -281,7 +290,7 @@ internal object DesktopThemeIconHook {
         if (sbn == null) return
         val pkg = sbn.packageName ?: return
         val context = HookEnv.context() ?: run {
-            diag("onPosted") { "$pkg 拿不到 Context，源头通道本次跳过" }
+            diag("onPosted", pkg) { "$pkg 拿不到 Context，源头通道本次跳过" }
             return
         }
         val bitmap = DesktopThemeIconProvider.resolve(
@@ -290,7 +299,7 @@ internal object DesktopThemeIconHook {
             userId = normalizeUserId(sbn.userId),
             sizePx = notificationIconPx(context),
         )
-        diag("onPosted") { "$pkg -> ${if (bitmap != null) "${bitmap.width}px 命中" else "未取到主题图标"}" }
+        diag("onPosted", pkg) { "$pkg -> ${if (bitmap != null) "${bitmap.width}px 命中" else "未取到主题图标"}" }
         if (bitmap == null) return
         if (!patchSmallIcon(sbn, bitmap)) return
         if (sourceHitLogged.compareAndSet(false, true)) {
@@ -432,11 +441,11 @@ internal object DesktopThemeIconHook {
      *
      * 锁屏通知卡片同样是 `ExpandableNotificationRow`，一并覆盖。
      */
-    private fun hookHeaderIcon() {
+    private fun hookHeaderIcon(): String {
         val cls = Reflect.classOrNull(HookEnv.classLoader, CLS_HEADER_WRAPPER)
         if (cls == null) {
             LogUtils.w(TAG, "install", "$CLS_HEADER_WRAPPER 不存在，通知行图标通道跳过")
-            return
+            return ""
         }
         val method = Reflect.findMethodByShape(
             cls = cls,
@@ -446,7 +455,7 @@ internal object DesktopThemeIconHook {
         )
         if (method == null) {
             LogUtils.w(TAG, "install", "onContentUpdated 未命中，通知行图标通道跳过")
-            return
+            return ""
         }
         runCatching {
             HookEnv.module.hook(method).intercept(object : XposedInterface.Hooker {
@@ -461,10 +470,12 @@ internal object DesktopThemeIconHook {
                     return result
                 }
             })
-            note("install", "已挂 $CLS_HEADER_WRAPPER#onContentUpdated（通知行图标通道）")
+            installNote("已挂 $CLS_HEADER_WRAPPER#onContentUpdated（通知行图标通道）")
         }.onFailure {
             LogUtils.w(TAG, "install", "挂 onContentUpdated 失败：${it.javaClass.simpleName}: ${it.message}")
+            return ""
         }
+        return "通知行"
     }
 
     /**
@@ -511,7 +522,7 @@ internal object DesktopThemeIconHook {
             userId = normalizeUserId(sbn.userId),
             sizePx = headerIconPx(context),
         )
-        diag("header") { "$pkg -> ${if (bitmap != null) "${bitmap.width}px 命中" else "未取到主题图标"}" }
+        diag("header", pkg) { "$pkg -> ${if (bitmap != null) "${bitmap.width}px 命中" else "未取到主题图标"}" }
         if (bitmap == null) return
         iconView.clearColorFilter()
         iconView.setImageDrawable(ThemeIconDrawable(context.resources, bitmap, stampOf(context)))
@@ -535,11 +546,11 @@ internal object DesktopThemeIconHook {
      * （`mIcon = mView.findViewById(android.R.id.icon)`），这一步**不回调** `onContentUpdated`。
      * 在重抓完 header 之后补一次图，避免「只在某些状态下又被换回原始图标」。
      */
-    private fun hookHeaderResolveViews() {
+    private fun hookHeaderResolveViews(): String {
         val cls = Reflect.classOrNull(HookEnv.classLoader, CLS_HEADER_WRAPPER)
         if (cls == null) {
             LogUtils.w(TAG, "install", "$CLS_HEADER_WRAPPER 不存在，header 重解析通道跳过")
-            return
+            return ""
         }
         val method = runCatching {
             cls.declaredMethods.firstOrNull {
@@ -549,7 +560,7 @@ internal object DesktopThemeIconHook {
         }.getOrNull()
         if (method == null) {
             LogUtils.w(TAG, "install", "resolveHeaderViews 未命中，header 重解析通道跳过")
-            return
+            return ""
         }
         runCatching {
             HookEnv.module.hook(method).intercept(object : XposedInterface.Hooker {
@@ -565,10 +576,12 @@ internal object DesktopThemeIconHook {
                     return result
                 }
             })
-            note("install", "已挂 $CLS_HEADER_WRAPPER#resolveHeaderViews（header 重解析通道）")
+            installNote("已挂 $CLS_HEADER_WRAPPER#resolveHeaderViews（header 重解析通道）")
         }.onFailure {
             LogUtils.w(TAG, "install", "挂 resolveHeaderViews 失败：${it.javaClass.simpleName}: ${it.message}")
+            return ""
         }
+        return "重解析"
     }
 
     // ---------------------------------------------- 钩子 4b：header 着色还原
@@ -587,11 +600,11 @@ internal object DesktopThemeIconHook {
      * [applyHeaderIcon] 内部带短路：图已经铺对时只清滤镜、不重新取图重铺，
      * 所以这个钩子留在颜色重算的热路径上是安全的。
      */
-    private fun hookHeaderIconColor() {
+    private fun hookHeaderIconColor(): String {
         val cls = Reflect.classOrNull(HookEnv.classLoader, CLS_HEADER_WRAPPER_EX)
         if (cls == null) {
             LogUtils.i(TAG, "install", "$CLS_HEADER_WRAPPER_EX 不存在，header 着色还原跳过")
-            return
+            return ""
         }
         val method = Reflect.findMethodByShape(
             cls = cls,
@@ -601,7 +614,7 @@ internal object DesktopThemeIconHook {
         )
         if (method == null) {
             LogUtils.i(TAG, "install", "updateIconColor 未命中，header 着色还原跳过")
-            return
+            return ""
         }
         runCatching {
             HookEnv.module.hook(method).intercept(object : XposedInterface.Hooker {
@@ -617,10 +630,12 @@ internal object DesktopThemeIconHook {
                     return result
                 }
             })
-            note("install", "已挂 $CLS_HEADER_WRAPPER_EX#updateIconColor（header 着色还原）")
+            installNote("已挂 $CLS_HEADER_WRAPPER_EX#updateIconColor（header 着色还原）")
         }.onFailure {
             LogUtils.w(TAG, "install", "挂 updateIconColor 失败：${it.javaClass.simpleName}: ${it.message}")
+            return ""
         }
+        return "着色还原"
     }
 
     // ---------------------------------------------- 钩子 5：锁屏行补图
@@ -633,11 +648,11 @@ internal object DesktopThemeIconHook {
      * 按行再刷一次，并且顺手把「窗口内所有图标视图」打出来（受 [DIAG_TOTAL_LIMIT]
      * 总量约束，与其它通道共用一个额度），用来定位锁屏卡片到底渲染在哪棵视图树上。
      */
-    private fun hookRowKeyguardState() {
+    private fun hookRowKeyguardState(): String {
         val cls = Reflect.classOrNull(HookEnv.classLoader, CLS_NOTIFICATION_ROW)
         if (cls == null) {
             LogUtils.w(TAG, "install", "$CLS_NOTIFICATION_ROW 不存在，锁屏补图通道跳过")
-            return
+            return ""
         }
         val method = Reflect.findMethodByShape(
             cls = cls,
@@ -647,7 +662,7 @@ internal object DesktopThemeIconHook {
         )
         if (method == null) {
             LogUtils.w(TAG, "install", "setOnKeyguard 未命中，锁屏补图通道跳过")
-            return
+            return ""
         }
         runCatching {
             HookEnv.module.hook(method).intercept(object : XposedInterface.Hooker {
@@ -662,17 +677,19 @@ internal object DesktopThemeIconHook {
                     return result
                 }
             })
-            note("install", "已挂 $CLS_NOTIFICATION_ROW#setOnKeyguard（锁屏补图通道）")
+            installNote("已挂 $CLS_NOTIFICATION_ROW#setOnKeyguard（锁屏补图通道）")
         }.onFailure {
             LogUtils.w(TAG, "install", "挂 setOnKeyguard 失败：${it.javaClass.simpleName}: ${it.message}")
+            return ""
         }
+        return "锁屏"
     }
 
     private fun onRowLocked(row: Any?) {
-        diag("kg") { "锁屏：进入补图" }
+        diag("kg", "enter") { "锁屏：进入补图" }
         dumpIconViews(row)
         val applied = applyRowIcons(row)
-        diag("kg") { "按行补图${if (applied) "成功" else "未命中/跳过"}" }
+        diag("kg", "apply") { "按行补图${if (applied) "成功" else "未命中/跳过"}" }
         // 再补一帧：锁屏切换里有一部分重排是 post 出去的（动画/落位），
         // 同步补完仍可能被后续的一次 RemoteViews 重放盖掉。
         val rowView = row as? View ?: return
@@ -757,7 +774,7 @@ internal object DesktopThemeIconHook {
             if (v is ViewGroup) for (i in 0 until v.childCount) walk(v.getChildAt(i), depth + 1)
         }
         runCatching { walk(root, 0) }
-        diag("kg") { "窗口内图标视图清单$sb" }
+        diag("kg", "dump") { "窗口内图标视图清单$sb" }
     }
 
     /** 祖先链（最近 3 层），用来判断这个图标控件挂在哪棵视图树上 */
@@ -799,11 +816,11 @@ internal object DesktopThemeIconHook {
      * （APK 里的原始启动图标）。后者改 `smallIcon` 影响不到，所以在卡片绑定完成后
      * 直接给图标控件换图。
      */
-    private fun hookCapsuleCard() {
+    private fun hookCapsuleCard(): String {
         val cls = Reflect.classOrNull(HookEnv.classLoader, CLS_CAPSULE_CARD)
         if (cls == null) {
             LogUtils.w(TAG, "install", "$CLS_CAPSULE_CARD 不存在，锁屏胶囊通道跳过")
-            return
+            return ""
         }
         val method = Reflect.findMethodByShape(
             cls = cls,
@@ -813,7 +830,7 @@ internal object DesktopThemeIconHook {
         )
         if (method == null) {
             LogUtils.w(TAG, "install", "CapsuleNotificationCardView#bind 未命中，锁屏胶囊通道跳过")
-            return
+            return ""
         }
         runCatching {
             HookEnv.module.hook(method).intercept(object : XposedInterface.Hooker {
@@ -828,10 +845,12 @@ internal object DesktopThemeIconHook {
                     return result
                 }
             })
-            note("install", "已挂 $CLS_CAPSULE_CARD#bind（锁屏胶囊通道）")
+            installNote("已挂 $CLS_CAPSULE_CARD#bind（锁屏胶囊通道）")
         }.onFailure {
             LogUtils.w(TAG, "install", "挂 CapsuleNotificationCardView#bind 失败：${it.javaClass.simpleName}: ${it.message}")
+            return ""
         }
+        return "胶囊"
     }
 
     private fun applyCapsuleIcon(card: Any?, inner: Any?) {
@@ -846,7 +865,7 @@ internal object DesktopThemeIconHook {
             userId = 0,
             sizePx = headerIconPx(context),
         ) ?: return
-        diag("capsule") { "$pkg -> ${bitmap.width}px 命中" }
+        diag("capsule", pkg) { "$pkg -> ${bitmap.width}px 命中" }
         runCatching {
             iconView.clearColorFilter()
             iconView.setImageDrawable(ThemeIconDrawable(context.resources, bitmap, stampOf(context)))
@@ -883,11 +902,11 @@ internal object DesktopThemeIconHook {
      * 参数类型 `com.android.internal.statusbar.StatusBarIcon` 是隐藏类，模块里无法直接引用，
      * 所以用 `expect = listOf(null)`（任意单参数）+ 返回 `Drawable` 定位。
      */
-    private fun hookStatusBarIconView() {
+    private fun hookStatusBarIconView(): String {
         val cls = Reflect.classOrNull(HookEnv.classLoader, CLS_STATUS_BAR_ICON_VIEW)
         if (cls == null) {
             LogUtils.w(TAG, "install", "$CLS_STATUS_BAR_ICON_VIEW 不存在，跳过图标替换通道")
-            return
+            return ""
         }
         val method = Reflect.findMethodByShape(
             cls = cls,
@@ -897,7 +916,7 @@ internal object DesktopThemeIconHook {
         )
         if (method == null) {
             LogUtils.w(TAG, "install", "getIcon(StatusBarIcon) 未命中，跳过图标替换通道")
-            return
+            return ""
         }
         runCatching {
             HookEnv.module.hook(method).intercept(object : XposedInterface.Hooker {
@@ -946,7 +965,7 @@ internal object DesktopThemeIconHook {
                                 userId = normalizeUserId(sbn.userId),
                                 sizePx = size,
                             )
-                            diag("getIcon") { "$pkg -> ${if (bitmap != null) "${bitmap.width}px 命中" else "未取到主题图标"}" }
+                            diag("getIcon", pkg) { "$pkg -> ${if (bitmap != null) "${bitmap.width}px 命中" else "未取到主题图标"}" }
                             if (bitmap != null) {
                                 if (firstHitLogged.compareAndSet(false, true)) {
                                     note("getIcon", "已用桌面主题图标替换状态栏图标（首个命中：$pkg）")
@@ -965,10 +984,12 @@ internal object DesktopThemeIconHook {
                     return chain.proceed()
                 }
             })
-            note("install", "已挂 $CLS_STATUS_BAR_ICON_VIEW#getIcon")
+            installNote("已挂 $CLS_STATUS_BAR_ICON_VIEW#getIcon")
         }.onFailure {
             LogUtils.w(TAG, "install", "挂 getIcon 失败：${it.javaClass.simpleName}: ${it.message}")
+            return ""
         }
+        return "状态栏"
     }
 
     // ------------------------------------------------------------------ 钩子 2
@@ -979,11 +1000,11 @@ internal object DesktopThemeIconHook {
      * 参数 2 是具体类 `StatusBarIconView`（模块可见），但为容忍 OTA 改继承关系，
      * 这里用 `null` 通配该位，只约束首尾。
      */
-    private fun hookGrayScale() {
+    private fun hookGrayScale(): String {
         val cls = Reflect.classOrNull(HookEnv.classLoader, CLS_ICON_CONTROLLER_IMPL)
         if (cls == null) {
             LogUtils.w(TAG, "install", "$CLS_ICON_CONTROLLER_IMPL 不存在，跳过着色修正通道")
-            return
+            return ""
         }
         val method = Reflect.findMethodByShape(
             cls = cls,
@@ -997,7 +1018,7 @@ internal object DesktopThemeIconHook {
         )
         if (method == null) {
             LogUtils.w(TAG, "install", "updateStatusBarIconGrayScale 未命中，跳过着色修正通道")
-            return
+            return ""
         }
         runCatching {
             HookEnv.module.hook(method).intercept(object : XposedInterface.Hooker {
@@ -1018,7 +1039,9 @@ internal object DesktopThemeIconHook {
             LogUtils.i(TAG, "install", "已挂 $CLS_ICON_CONTROLLER_IMPL#updateStatusBarIconGrayScale")
         }.onFailure {
             LogUtils.w(TAG, "install", "挂 updateStatusBarIconGrayScale 失败：${it.javaClass.simpleName}: ${it.message}")
+            return ""
         }
+        return "着色修正"
     }
 
     /** 标记为「不可着色」：清颜色滤镜，并同步 `icon_is_grayscale` 标签（面板侧会读它） */
@@ -1048,34 +1071,63 @@ internal object DesktopThemeIconHook {
     // ------------------------------------------------------------------ 诊断出口
 
     /**
+     * 诊断去重键（`通道|包名`）。
+
+     * 只有总量上限是不够的：2026-11-28 真机日志里，一条常驻通知（com.fr.husi）
+     * 在 4 秒内刷了 25 次命中，把 [DIAG_TOTAL_LIMIT] 的 30 条额度吃光，
+     * 之后真出问题时**一条诊断都没有**。去重后同样的额度能覆盖 30 个不同场景。
+     */
+    private val diagSeen: MutableSet<String> =
+        java.util.concurrent.ConcurrentHashMap.newKeySet()
+
+    /**
      * 受 [DIAG_TOTAL_LIMIT] 总量上限保护的诊断输出。
 
-     * 用 `LogUtils.e` 是有意的：判据类日志要关着「详细日志」也能看见。
+     * **级别是 INFO，不是 ERROR**：这里打的是「命中 / 未命中」这类正常路径信息，不是故障。
+     * 之前用 `LogUtils.e`，结果 LSPosed 日志页满屏红色 E —— 2026-11-28 的日志里
+     * 52 条 E 全是本模块的命中诊断，**没有一条是异常**，把真正的错误淹没了。
+     * 「模块有没有注入 / 钩子有没有装上」的穿透锚点由 [note] 承担，那才是 ERROR。
+     *
+     * [key] 用于去重：同一通道的同一个包只记第一次（见 [diagSeen]）。
      *
      * [msg] 用 **内联 lambda** 而不是 `String`：原来消息在调用点的实参求值时就拼好了，
      * 额度用尽后每次 `onNotificationPosted` / 每次取图仍照拼一遍（StringBuilder + toString）。
-     * 内联后 lambda 被展开进函数体，额度不够时**连字符串都不构造**。
+     * 内联后 lambda 被展开进函数体，额度不够或已去重时**连字符串都不构造**。
      */
-    private inline fun diag(method: String, msg: () -> String) {
+    private inline fun diag(method: String, key: String, msg: () -> String) {
         // 先判再自增：额度用尽后这条路径要彻底静默，别再碰原子变量
         if (diagSent.get() > DIAG_TOTAL_LIMIT) return
+        // 去重放在额度自增之前：重复命中不该消耗额度
+        if (!diagSeen.add("$method|$key")) return
         val n = diagSent.incrementAndGet()
         if (n > DIAG_TOTAL_LIMIT) return
-        LogUtils.e(TAG, method, "[$n] ${msg()}")
+        LogUtils.i(TAG, method, "[$n] ${msg()}")
     }
 
     /** 诊断额度是否还有余量（供「先做重活再打日志」的调用点提前退出） */
     private fun diagAvailable(): Boolean = diagSent.get() <= DIAG_TOTAL_LIMIT
 
     /**
-     * 结论性日志（**不计入**诊断上限）。
+     * 结论性日志（**不计入**诊断上限，WARN 级 + 强制输出）。
 
      * 只用于「本功能已经装上 / 已经命中」这类单次事件：量是常数级的，
      * 且正是排查「模块有没有注入」时要看到的那几条，所以不受总量约束。
+     *
+     * **级别是 WARN 而不是 ERROR**：这些是正常路径的里程碑（装上了 / 首个命中），
+     * 不是故障。用 ERROR 会让 LSPosed 日志页把正常状态显示成红色错误，
+     * 真故障反而被淹。走 [LogUtils.anchor] 保证「详细日志」关着也可见。
      */
     private fun note(method: String, msg: String) {
-        LogUtils.e(TAG, method, msg)
+        LogUtils.anchor(TAG, method, msg)
     }
+
+    /**
+     * 通道安装明细（**INFO**）。
+
+     * 一条通道装没装上，从 [note] 那条「安装完成」汇总里看不出来；但它也不该是 ERROR ——
+     * 装上 8 条通道不该在日志页刷出 8 条红色错误。详细日志开着时看明细，关着时看汇总。
+     */
+    private fun installNote(msg: String) = LogUtils.i(TAG, "install", msg)
 
     // ------------------------------------------------------------------ 取值
 

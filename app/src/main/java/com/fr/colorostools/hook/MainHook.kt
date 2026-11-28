@@ -146,7 +146,7 @@ class MainHook : XposedModule() {
         // 用户手动把 sceneservice / colordirectservice 加回作用域时也能命中，
         // Hooker 内部按「类是否存在」自适应（哪套引擎在跑就挂哪套，不存在只记一行日志）。
         if (pkg == HookEnv.PKG_METIS || pkg == HookEnv.PKG_SCENE_SERVICE || pkg == HookEnv.PKG_COLORDIRECT) {
-            LogUtils.i(TAG, via, "流体云宿主命中（$pkg），安装两个 Hooker")
+            LogUtils.anchor(TAG, via, "流体云宿主命中（$pkg），安装两个 Hooker")
             FluidCloudReplaceHook.install()
             FluidCloudSeedlingHook.install()
         }
@@ -157,12 +157,12 @@ class MainHook : XposedModule() {
         }
         // 无障碍增强（设置 App）：写 Secure settings 需要 WRITE_SECURE_SETTINGS，只有设置进程持有
         if (pkg == HookEnv.PKG_SETTINGS) {
-            LogUtils.i(TAG, via, "设置宿主命中（$pkg），安装无障碍增强 Hooker")
+            LogUtils.anchor(TAG, via, "设置宿主命中（$pkg），安装无障碍增强 Hooker")
             AccessibilityEnhanceHook.install()
         }
         // 桌面长按菜单定制（系统桌面）：3 钩子方案，见 docs/桌面长按菜单移植-方案评估.md
         if (pkg == HookEnv.PKG_LAUNCHER) {
-            LogUtils.i(TAG, via, "桌面宿主命中（$pkg），安装长按菜单 Hooker")
+            LogUtils.anchor(TAG, via, "桌面宿主命中（$pkg），安装长按菜单 Hooker")
             LauncherMenuHook.install()
             // 隐藏应用四件套（双指张开 / 多任务显示已隐藏 / 彻底隐藏图标）：同一宿主，独立 Hooker
             LauncherHiddenAppsHook.install()
@@ -174,37 +174,37 @@ class MainHook : XposedModule() {
         //  - 通知图标改为桌面当前主题图标：StatusBarIconView#getIcon 单点替换 +
         //    灰度判定修正，见 DesktopThemeIconHook 类文档
         if (pkg == HookEnv.PKG_SYSTEMUI) {
-            // 用 ERROR 级别：即使「详细日志」开关关着也要能在 LSPosed 日志里看到这一条，
-            // 这是判断「模块到底有没有被注入 SystemUI 进程」最直接的锚点。
-            LogUtils.e(TAG, via, "系统界面宿主命中（$pkg），安装锁屏通知偏移 + 桌面主题图标 Hooker")
+            // 锚点级别（WARN + force）：详细日志关着也一定输出，且不再把日志页刷成红色 ERROR。
+            // 这是判断「模块到底有没有被注入 SystemUI 进程」最直接的依据。
+            LogUtils.anchor(TAG, via, "系统界面宿主命中（$pkg），安装锁屏通知偏移 + 桌面主题图标 Hooker")
             KeyguardNotificationOffsetHook.install()
             DesktopThemeIconHook.install()
         }
         // 天气 App（系统天气）：不外跳浏览器（startActivity 级拦截）+ 净化（隐藏广告/运营卡片）
         if (pkg == HookEnv.PKG_WEATHER) {
-            LogUtils.i(TAG, via, "天气宿主命中（$pkg），安装不外跳浏览器 + 净化 Hooker")
+            LogUtils.anchor(TAG, via, "天气宿主命中（$pkg），安装不外跳浏览器 + 净化 Hooker")
             WeatherNoBrowserHook.install()
             WeatherPurifyHook.install()
         }
         // 小布输入法（模糊增强 + 按键下滑快捷键）：两个功能独立开关，见 OplusKeyboardHook 类文档
         if (pkg == HookEnv.PKG_OPLUS_KEYBOARD) {
-            LogUtils.i(TAG, via, "小布输入法宿主命中（$pkg），安装键盘 Hooker")
+            LogUtils.anchor(TAG, via, "小布输入法宿主命中（$pkg），安装键盘 Hooker")
             OplusKeyboardHook.install()
         }
         // 文件管理器 App：隐藏安全访问提示（只改选择页那张卡片，不动任何权限判定）
         if (pkg == HookEnv.PKG_FILE_MANAGER) {
-            LogUtils.i(TAG, via, "文件管理宿主命中（$pkg），安装隐藏安全访问提示 Hooker")
+            LogUtils.anchor(TAG, via, "文件管理宿主命中（$pkg），安装隐藏安全访问提示 Hooker")
             FileManagerHook.install()
         }
         // 主题商店 + 主题基础服务：解锁会员 / 去广告 / 试用资源不过期
         // （两个包同源代码，能挂什么由 ThemeStoreHook 按包名与类存在性分流，见其类文档）
         if (pkg == HookEnv.PKG_THEME_STORE || pkg == HookEnv.PKG_THEME_BASE) {
-            LogUtils.i(TAG, via, "主题宿主命中（$pkg），安装主题商店 Hooker")
+            LogUtils.anchor(TAG, via, "主题宿主命中（$pkg），安装主题商店 Hooker")
             ThemeStoreHook.install(pkg)
         }
         // 快递不跳小程序：三个入口宿主各管一段（平台进程是主战场，桌面与小布只改写目的地）
         if (pkg in ExpressCardHook.packages) {
-            LogUtils.i(TAG, via, "快递卡片宿主命中（$pkg），安装 Express Hooker")
+            LogUtils.anchor(TAG, via, "快递卡片宿主命中（$pkg），安装 Express Hooker")
             ExpressCardHook.install(pkg)
         }
         bindAppContextLater(loader)

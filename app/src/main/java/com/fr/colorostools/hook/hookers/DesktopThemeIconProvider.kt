@@ -312,7 +312,7 @@ internal object DesktopThemeIconProvider {
     // ------------------------------------------------------------------ 自检
 
     /**
-     * 启动自检：把一条包名走完整链路，逐步打 ERROR 级日志。
+     * 启动自检：把一条包名走完整链路，逐步打 INFO 级日志。
      *
      * 只在安装完成后由 [DesktopThemeIconHook] 调一次。**为什么需要它**：钩子装没装上、
      * 开关读没读到，都能从日志看出来；但「取图为什么失败」在运行期无法区分是
@@ -321,11 +321,11 @@ internal object DesktopThemeIconProvider {
      */
     fun diagnose(context: Context, pkg: String) {
         val api = uxApi()
-        LogUtils.e(TAG, "diagnose", "[$pkg] ① 反射句柄 api=${api != null} loadItemIcon=${api?.loadItemIcon != null}")
+        LogUtils.i(TAG, "diagnose", "[$pkg] ① 反射句柄 api=${api != null} loadItemIcon=${api?.loadItemIcon != null}")
         if (api == null) return
         val pm = context.packageManager
         val appInfo = runCatching { pm.getApplicationInfo(pkg, 0) }.getOrNull()
-        LogUtils.e(TAG, "diagnose", "[$pkg] ② appInfo=${appInfo != null} appIcon=${appInfo?.icon}")
+        LogUtils.i(TAG, "diagnose", "[$pkg] ② appInfo=${appInfo != null} appIcon=${appInfo?.icon}")
         if (appInfo == null) return
         val launcherCount = runCatching {
             context.getSystemService(LauncherApps::class.java)
@@ -333,23 +333,23 @@ internal object DesktopThemeIconProvider {
         }.getOrElse { -it.javaClass.simpleName.hashCode() }
         val pair = resolveItemInfo(context, pkg, 0)
         if (pair == null) {
-            LogUtils.e(TAG, "diagnose", "[$pkg] ③ resolveItemInfo=null（包不可见？）")
+            LogUtils.i(TAG, "diagnose", "[$pkg] ③ resolveItemInfo=null（包不可见？）")
             return
         }
         val item = pair.first
-        LogUtils.e(
+        LogUtils.i(
             TAG, "diagnose",
             "[$pkg] ③ launcherActivities=$launcherCount item=${item.javaClass.simpleName} " +
                 "itemIcon=${item.icon} activityName=${item.name}",
         )
         val drawable = runCatching { invokeLoad(api, context, item, pair.second) }.getOrNull()
-        LogUtils.e(
+        LogUtils.i(
             TAG, "diagnose",
             "[$pkg] ④ loadItemIcon -> ${drawable?.javaClass?.simpleName} " +
                 "intrinsic=${drawable?.intrinsicWidth}x${drawable?.intrinsicHeight}",
         )
         val bitmap = resolve(context, pkg, 0, 144)
-        LogUtils.e(TAG, "diagnose", "[$pkg] ⑤ resolve -> ${bitmap?.width}x${bitmap?.height}")
+        LogUtils.i(TAG, "diagnose", "[$pkg] ⑤ resolve -> ${bitmap?.width}x${bitmap?.height}")
     }
 
     /**

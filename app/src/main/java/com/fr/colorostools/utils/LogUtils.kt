@@ -8,7 +8,13 @@ import org.lsposed.lsparanoid.Obfuscate
  *
  * 单一开关「启用详细日志」[enable]（设置页）：
  * - **开启** —— 所有级别（V/D/I/W/E）都投递到 LSPosed 日志页；
- * - **关闭** —— 只投递 `ERROR`，其余级别直接丢弃（连消息字符串都不拼）。
+ * - **关闭** —— 只投递 `ERROR` 与**注入锚点** [anchor]（WARN 级、强制输出），
+ *   其余级别直接丢弃（连消息字符串都不拼）。
+ *
+ * 级别语义（v1.6.1 起）：
+ * - `ERROR` —— **只有真故障**：钩子装不上、反射失败、宿主类不存在、异常兜底；
+ * - `WARN` —— 降级/放弃类信息，以及 [anchor] 注入锚点（正常路径但必须可见）；
+ * - `INFO` / `DEBUG` —— 命中明细、安装明细，仅详细日志开启时可见。
  *
  * 唯一通道 [frameworkSink]：由模块入口（`MainHook.onModuleLoaded`）注入
  * `XposedInterface.log(priority, tag, msg)`。
@@ -69,10 +75,17 @@ object LogUtils {
     /**
      * @param send 调用方显式关掉这一条（高频路径的可选日志）。传 `false` 时连消息字符串都不拼。
      */
-    private fun emit(priority: Int, tag: String, method: String, msg: String, send: Boolean) {
+    private fun emit(
+        priority: Int,
+        tag: String,
+        method: String,
+        msg: String,
+        send: Boolean,
+        force: Boolean = false,
+    ) {
         if (!send) return
-        // 关闭详细日志：只放行 ERROR，其余级别在拼字符串之前就丢弃
-        if (priority < Log.ERROR && !verboseEnabled()) return
+        // 关闭详细日志：只放行 ERROR 与显式锚点（force），其余级别在拼字符串之前就丢弃
+        if (!force && priority < Log.ERROR && !verboseEnabled()) return
 
         val text = "$tag: $method -> $msg"
         val sink = frameworkSink
@@ -81,18 +94,30 @@ object LogUtils {
         if (!delivered) Log.println(priority, globalTag, text)
     }
 
-    fun d(tag: String, method: String, msg: String, send: Boolean = true) =
-        emit(Log.DEBUG, tag, method, msg, send)
+    fun d(tag: String, method: String, msg: String, send: Boolean = true, force: Boolean = false) =
+        emit(Log.DEBUG, tag, method, msg, send, force)
 
-    fun e(tag: String, method: String, msg: String, send: Boolean = true) =
-        emit(Log.ERROR, tag, method, msg, send)
+    fun e(tag: String, method: String, msg: String, send: Boolean = true, force: Boolean = false) =
+        emit(Log.ERROR, tag, method, msg, send, force)
 
-    fun i(tag: String, method: String, msg: String, send: Boolean = true) =
-        emit(Log.INFO, tag, method, msg, send)
+    fun i(tag: String, method: String, msg: String, send: Boolean = true, force: Boolean = false) =
+        emit(Log.INFO, tag, method, msg, send, force)
 
-    fun v(tag: String, method: String, msg: String, send: Boolean = true) =
-        emit(Log.VERBOSE, tag, method, msg, send)
+    fun v(tag: String, method: String, msg: String, send: Boolean = true, force: Boolean = false) =
+        emit(Log.VERBOSE, tag, method, msg, send, force)
 
-    fun w(tag: String, method: String, msg: String, send: Boolean = true) =
-        emit(Log.WARN, tag, method, msg, send)
+    fun w(tag: String, method: String, msg: String, send: Boolean = true, force: Boolean = false) =
+        emit(Log.WARN, tag, method, msg, send, force)
+
+    /**
+     * 注入锚点（**WARN 级，详细日志关着也一定输出**）。
+     *
+     * 用于「模块成功进入某宿主进程 / 某条钩子已装上」这类**正常路径**的里程碑事件：
+     * 它是排查「模块到底有没有注入」的唯一依据，所以不能被详细日志开关吞掉；
+     * 但它又不是故障，所以不该用 ERROR 把日志页刷成一片红。
+     *
+     * 语义分层：**ERROR = 真故障**，**WARN(锚点) = 装上了 / 命中了**，INFO/DEBUG = 明细。
+     */
+    fun anchor(tag: String, method: String, msg: String) =
+        emit(Log.WARN, tag, method, msg, send = true, force = true)
 }
